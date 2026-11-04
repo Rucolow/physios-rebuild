@@ -23,13 +23,15 @@ knowledge の `fsnz/PHYSIOS/plan.md` の範囲で作る PHYSIOS。清水の一�
 ## 立ち上げの手順
 
 ```bash
-# 1. 器
+# 1. 器（5432 につながらない環境では、Dashboard の SQL Editor に貼って Run）
 psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_init.sql
 # 2. 清水のプロトコル（既存の physios の seeds を作業用の DB に入れてから写す）
 bash scripts/build-source-db.sh ../physios "$SOURCE_DB_URL"
 bash scripts/import-shimizu.sh "$SOURCE_DB_URL" "$SUPABASE_DB_URL"
-# 3. トレーナーと架空の選手
-node scripts/create-trainer.mjs --email ... --password ... --name '清水 遼'
+#    5432 につながらない環境（クラウドのセッション）では HTTPS で写す
+SOURCE_DB_URL=... node scripts/import-shimizu-rest.mjs
+# 3. トレーナーと架空の選手（ユーザーは先に Dashboard の Authentication → Users → Add user で作る）
+node scripts/create-trainer.mjs --email ... --name '清水 遼'
 ```
 
 ## 検査
