@@ -83,7 +83,16 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
   const open = pending.filter((it) => unanswered(it, answers[it.id]))
   const carried = pending.filter((it) => it.carried).length
 
+  function jumpToOpen() {
+    const first = open[0]
+    if (first) document.getElementById(`draft-${first.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   function confirm() {
+    if (open.length) {
+      jumpToOpen()
+      return
+    }
     setResult(null)
     if (preview) {
       setResult('見本の画面なので記録はしません。')
@@ -185,7 +194,7 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
       {pending.length > 0 && (
         <div className="fixed inset-x-0 bottom-above-nav z-header border-t border-layer-5 glass px-4 py-3">
           <div className="mx-auto flex max-w-read items-center gap-4">
-            <p className="min-w-0 flex-1 text-2xs text-navy-400" role="status">
+            <button type="button" onClick={jumpToOpen} className="min-w-0 flex-1 text-left text-2xs text-navy-400" role="status">
               {result ?? (
                 <>
                   <Num>{pending.length}</Num> 件の記録・
@@ -200,9 +209,9 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
                   )}
                 </>
               )}
-            </p>
-            <Button variant="primary" size="md" disabled={busy || open.length > 0} onClick={confirm}>
-              {busy ? '記録しています' : '今日を記録する'}
+            </button>
+            <Button variant="primary" size="md" disabled={busy} onClick={confirm}>
+              {busy ? '記録しています' : open.length ? '次の要確認へ' : '今日を記録する'}
             </Button>
           </div>
         </div>
@@ -216,6 +225,11 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
   const playerName = playerId ? ctx.players.find((p) => p.id === playerId)?.name ?? null : null
   const rejected = a.action === 'reject'
   const isOpen = unanswered(it, a)
+  // 読むだけの行は道具をしまっておき、本文を押したときだけ出す（10 行あっても読み物として読めるように）
+  const [tools, setTools] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const summary = a.summary ?? it.seg.summary
+  const showTools = it.reason !== null || tools || rejected
 
   const title =
     it.kind === 'schedule'
@@ -227,7 +241,7 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
           : playerName ?? 'どの選手ですか'
 
   return (
-    <div className={cn('flex items-start gap-4 px-5 py-4', rejected && 'bg-layer-3')}>
+    <div id={`draft-${it.id}`} className={cn('flex scroll-mt-6 items-start gap-4 px-5 py-4', rejected && 'bg-layer-3')}>
       <span className={cn('w-11 shrink-0 pt-0.5 font-mono text-sm nums', rejected ? 'text-navy-500' : 'text-navy-400')}>{it.time}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
@@ -236,9 +250,35 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
             <StateWord tone="none">記録しない</StateWord>
           ) : it.reason ? (
             <StateWord tone={isOpen ? 'watch' : 'none'}>{isOpen ? '要確認' : '回答済み'}</StateWord>
+          ) : a.summary !== undefined ? (
+            <StateWord tone="none">直した</StateWord>
           ) : null}
         </div>
-        <p className={cn('mt-1 text-sm', rejected ? 'text-navy-500' : 'text-navy-200')}>{it.seg.summary}</p>
+        {editing ? (
+          <div className="mt-2 space-y-2">
+            <textarea
+              autoFocus
+              defaultValue={summary}
+              rows={3}
+              onBlur={(e) => {
+                const v = e.target.value.trim()
+                onChange({ summary: v && v !== it.seg.summary ? v : undefined })
+                setEditing(false)
+              }}
+              className="w-full rounded-field border border-gold-500 bg-layer-5 p-3 text-sm text-white focus:outline-none"
+            />
+            <p className="text-2xs text-navy-500">枠の外を押すと直したものが残ります。</p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setTools((v) => !v)}
+            aria-expanded={showTools}
+            className={cn('mt-1 block w-full text-left text-sm', rejected ? 'text-navy-500' : 'text-navy-200')}
+          >
+            {summary}
+          </button>
+        )}
         {it.seg.alert && !rejected && (
           <p className="mt-2 flex items-start gap-2 text-sm text-navy-200">
             <StateWord tone="act" className="pt-0.5">注意</StateWord>
@@ -247,7 +287,7 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
         )}
 
         {!rejected && (
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 space-y-3 empty:hidden">
             {!it.playerId && it.kind !== 'schedule' && (
               <PlayerChoice it={it} a={a} ctx={ctx} onChange={onChange} />
             )}
@@ -268,14 +308,19 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
           </div>
         )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {it.audioUrl && <AudioButton url={it.audioUrl} start={it.seg.start_sec ?? 0} />}
-          {rejected ? (
-            <Button variant="ghost" size="sm" onClick={() => onChange({ action: 'confirm' })}>記録に戻す</Button>
-          ) : it.kind === 'schedule' ? null : (
-            <Button variant="ghost" size="sm" onClick={() => onChange({ action: 'reject' })}>記録しない</Button>
-          )}
-        </div>
+        {showTools && !editing && (
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {it.audioUrl && <AudioButton url={it.audioUrl} start={it.seg.start_sec ?? 0} />}
+            {!rejected && it.kind === 'karte' && (
+              <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>文を直す</Button>
+            )}
+            {rejected ? (
+              <Button variant="ghost" size="sm" onClick={() => onChange({ action: 'confirm' })}>記録に戻す</Button>
+            ) : it.kind === 'schedule' ? null : (
+              <Button variant="ghost" size="sm" onClick={() => onChange({ action: 'reject' })}>記録しない</Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -347,13 +392,21 @@ function RowList({ protocolId, a, ctx, currentRowId, onChange }: { protocolId: s
   )
 }
 
+function rowName(ctx: DigestContext, protocolId: string, rowId: string | null) {
+  return rowId ? ctx.rows[protocolId]?.find((r) => r.id === rowId)?.period_raw ?? null : null
+}
+
 function RowChoice({ playerId, a, ctx, onChange }: { playerId: string; a: DraftAnswer; ctx: DigestContext; onChange: (p: Partial<DraftAnswer>) => void }) {
   const ep = ctx.episodes[playerId]
   if (!ep?.protocolId) return <p className="text-sm text-navy-400">この選手には進行中の怪我がありません。記録しないを選んでください。</p>
   return (
     <div className="space-y-2">
       <p className="text-2xs font-medium text-navy-300">
-        {ep.label}・受傷から <Num>{ep.week}</Num> 週目。明日からの時期を選んでください。
+        {ep.label}・受傷から <Num>{ep.week}</Num> 週目
+      </p>
+      <p className="text-sm text-navy-200">
+        いま <span className="text-white">{rowName(ctx, ep.protocolId, ep.currentRowId) ?? '未指定'}</span>
+        {' → '}明日から <span className="font-bold text-white">{rowName(ctx, ep.protocolId, a.menu_row_id ?? null) ?? '（選んでください）'}</span>
       </p>
       <RowList protocolId={ep.protocolId} a={a} ctx={ctx} currentRowId={ep.currentRowId} onChange={onChange} />
     </div>
