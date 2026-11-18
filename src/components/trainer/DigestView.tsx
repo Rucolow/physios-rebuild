@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/Button'
 import { Num } from '@/components/ui/Num'
 import { StateWord } from '@/components/ui/StateWord'
-import { confirmAction } from '@/app/(trainer)/digest/actions'
+import { confirmAction, reprocessAction } from '@/app/(trainer)/digest/actions'
 import type { InterpretedSegment } from '@/lib/llm/interpret'
 import type { DraftAnswer } from '@/lib/confirm'
 
@@ -164,6 +164,7 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
                   <span className="w-11 shrink-0 font-mono text-sm text-navy-400 nums">{m.time}</span>
                   <p className="min-w-0 flex-1 text-sm text-navy-200">文字起こしか解釈に失敗しました。</p>
                   {m.audioUrl && <AudioButton url={m.audioUrl} start={0} />}
+                  <RetryButton memoId={m.id} />
                 </div>
               ))}
             </div>
@@ -484,5 +485,30 @@ function AudioButton({ url, start }: { url: string; start: number }) {
       {playing ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
       元音声 <Num>{label}</Num>
     </Button>
+  )
+}
+
+function RetryButton({ memoId }: { memoId: string }) {
+  const router = useRouter()
+  const [busy, start] = useTransition()
+  const [msg, setMsg] = useState<string | null>(null)
+  return (
+    <div className="flex shrink-0 flex-col items-end gap-1">
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={busy}
+        onClick={() =>
+          start(async () => {
+            const r = await reprocessAction(memoId)
+            setMsg(r.ok ? null : r.message)
+            router.refresh()
+          })
+        }
+      >
+        {busy ? 'やり直し中' : 'やり直す'}
+      </Button>
+      {msg && <p className="text-2xs text-navy-400">{msg}</p>}
+    </div>
   )
 }

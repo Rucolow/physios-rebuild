@@ -18,7 +18,7 @@ export function confirmReasonOf(seg: Pick<InterpretedSegment, 'kind' | 'player_i
 
 /**
  * 音声（または打ち込んだ文）を受け取り、文字起こし → 解釈 → 下書きまで進める。
- * 途中で失敗しても voice_memo に状態と理由が残り、音声は消さない。
+ * 途中で失敗しても voice_memo に状態と理由が残り、音声は消さない（reprocessMemo でやり直せる）。
  */
 export async function ingestMemo(
   trainer: Trainer,
@@ -33,29 +33,86 @@ export async function ingestMemo(
       recorded_at: now.toISOString(),
       local_date: localDate(trainer.time_zone, now),
       input_kind: input.kind,
+      transcript: input.kind === 'text' ? input.text : null,
     })
     .select('id, local_date')
     .single()
   if (error) throw error
 
-  const fail = async (e: unknown) => {
-    await db.from('voice_memo').update({ status: 'failed', error: String(e instanceof Error ? e.message : e) }).eq('id', memo.id)
+  if (input.kind === 'voice') {
+    try {
+      const ext = input.mimeType.includes('mp4') ? 'm4a' : input.mimeType.includes('ogg') ? 'ogg' : 'webm'
+      const path = `${trainer.id}/${memo.local_date}/${memo.id}.${ext}`
+      const up = await db.storage.from('voice').upload(path, input.audio, { contentType: input.mimeType, upsert: false })
+      if (up.error) throw up.error
+      // 文字起こしより前に置き場を記録する（失敗しても音声からやり直せるように）
+      await db.from('voice_memo').update({ storage_path: path }).eq('id', memo.id)
+    } catch (e) {
+      await markFailed(memo.id, e)
+      throw e
+    }
+  }
+  return processMemo(trainer, { id: memo.id, local_date: memo.local_date }, input.kind === 'voice' ? { audio: input.audio, mimeType: input.mimeType } : null)
+}
+
+/** 処理できなかった録音を、残っている音声（または文）から最初からやり直す */
+export async function reprocessMemo(trainer: Trainer, memoId: string): Promise<{ memoId: string; drafts: number }> {
+  const db = adminDb()
+  const { data: memo, error } = await db
+    .from('voice_memo')
+    .select('id, trainer_id, local_date, input_kind, storage_path, transcript, status')
+    .eq('id', memoId)
+    .single()
+  if (error) throw error
+  // 担当関係はサーバ側で確かめる
+  if (memo.trainer_id !== trainer.id) throw new Error('この録音を扱う権限がありません')
+  if (memo.status !== 'failed') return { memoId, drafts: 0 }
+  // 前回の途中で入った下書きが残っていれば、未確定のものだけ消してから作り直す
+  await db.from('draft').delete().eq('voice_memo_id', memoId).eq('status', 'pending')
+  await db.from('voice_memo').update({ status: 'received', error: null }).eq('id', memoId)
+
+  let audio: { audio: ArrayBuffer; mimeType: string } | null = null
+  if (memo.input_kind === 'voice') {
+    if (!memo.storage_path) {
+      await markFailed(memoId, '音声が保存されていません')
+      throw new Error('音声が保存されていません')
+    }
+    const dl = await db.storage.from('voice').download(memo.storage_path)
+    if (dl.error) {
+      await markFailed(memoId, dl.error)
+      throw dl.error
+    }
+    audio = { audio: await dl.data.arrayBuffer(), mimeType: dl.data.type || 'audio/webm' }
+  }
+  return processMemo(trainer, { id: memoId, local_date: memo.local_date }, audio)
+}
+
+async function markFailed(memoId: string, e: unknown) {
+  await adminDb()
+    .from('voice_memo')
+    .update({ status: 'failed', error: String(e instanceof Error ? e.message : e) })
+    .eq('id', memoId)
+}
+
+async function processMemo(
+  trainer: Trainer,
+  memo: { id: string; local_date: string },
+  audio: { audio: ArrayBuffer; mimeType: string } | null,
+): Promise<{ memoId: string; drafts: number }> {
+  const db = adminDb()
+  const fail = async (e: unknown): Promise<never> => {
+    await markFailed(memo.id, e)
     throw e
   }
 
   let marked: string
   try {
-    if (input.kind === 'voice') {
-      const ext = input.mimeType.includes('mp4') ? 'm4a' : input.mimeType.includes('ogg') ? 'ogg' : 'webm'
-      const path = `${trainer.id}/${memo.local_date}/${memo.id}.${ext}`
-      const up = await db.storage.from('voice').upload(path, input.audio, { contentType: input.mimeType, upsert: false })
-      if (up.error) throw up.error
-      const t = await transcribe(input.audio, input.mimeType)
+    if (audio) {
+      const t = await transcribe(audio.audio, audio.mimeType)
       marked = t.marked
       await db
         .from('voice_memo')
         .update({
-          storage_path: path,
           duration_sec: t.duration,
           transcript: t.plain,
           stt_language: t.languages.join(',') || null,
@@ -64,8 +121,10 @@ export async function ingestMemo(
         })
         .eq('id', memo.id)
     } else {
-      marked = input.text
-      await db.from('voice_memo').update({ transcript: input.text, status: 'transcribed' }).eq('id', memo.id)
+      const { data, error } = await db.from('voice_memo').select('transcript').eq('id', memo.id).single()
+      if (error) throw error
+      marked = data.transcript ?? ''
+      await db.from('voice_memo').update({ status: 'transcribed' }).eq('id', memo.id)
     }
   } catch (e) {
     return fail(e)
