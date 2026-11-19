@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { requireTrainer } from '@/lib/auth'
 import { adminDb } from '@/lib/supabase/server'
 import { personName } from '@/lib/format/name'
+import { AddPlayer } from '@/components/trainer/AddPlayer'
 
 export default async function PlayersPage() {
   const trainer = await requireTrainer()
@@ -16,6 +17,7 @@ export default async function PlayersPage() {
     <main className="px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto max-w-read space-y-6">
         <h1 className="text-3xl font-bold text-white">選手</h1>
+        <AddPlayer defaultTeam={(players ?? []).find((p) => !p.is_fictional && p.team)?.team ?? ''} />
         <div className="glass overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
           {(players ?? []).map((p) => (
             <Link key={p.id} href={`/players/${p.id}`} className="flex items-center gap-4 px-5 py-4 transition-colors duration-fast hover:bg-layer-5">
