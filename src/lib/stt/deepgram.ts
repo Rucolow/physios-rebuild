@@ -3,8 +3,12 @@ import { env } from '@/lib/env'
 
 /**
  * Deepgram（EU の入口・Nova-3）で文字起こしする。
- * 清水は日本語でもドイツ語でもメモするので、既定は言語の切り替えを含む multi にする。
- * 言語の指定は PHYSIOS_STT_LANGUAGE で変えられる（試験の結果で決める）。
+ * 清水は日本語でもドイツ語でもメモするが、一つのメモの中で混ぜない（Rucolow 2026-11-19）。
+ * 既定は言語の判定（detect_language）で、メモごとに日本語かドイツ語の単一言語のモデルで起こす。
+ * 2026-11-19 の Rucolow の日本語の録音三本では、multi は「内側側副靭帯」「外反」「圧痛」「ゲーム形式」を崩し、
+ * 判定は全て ja（信頼度 0.99 以上）になって専門用語まで正しく出た。ドイツ語の合成音声も de と判定され正しく出た。
+ * 言語を固定したいときは PHYSIOS_STT_LANGUAGE（ja / de / multi）で指定する。
+ * keyterms には名簿の選手名と呼び方を渡す（「森大和」が「森山と」になったのが、渡すと正しく出た）。
  */
 const ENDPOINT = 'https://api.eu.deepgram.com/v1/listen'
 
@@ -20,15 +24,20 @@ export interface Transcript {
 interface DgWord { word: string; punctuated_word?: string; start: number; end: number; language?: string }
 interface DgUtterance { start: number; end: number; transcript: string; languages?: string[] }
 
-export async function transcribe(audio: ArrayBuffer, mimeType: string): Promise<Transcript> {
-  const language = process.env.PHYSIOS_STT_LANGUAGE || 'multi'
+/** Deepgram の keyterm は一回に 100 語まで */
+const MAX_KEYTERMS = 100
+
+export async function transcribe(audio: ArrayBuffer, mimeType: string, keyterms: string[] = []): Promise<Transcript> {
+  const language = process.env.PHYSIOS_STT_LANGUAGE
   const params = new URLSearchParams({
     model: 'nova-3',
-    language,
     smart_format: 'true',
     punctuate: 'true',
     utterances: 'true',
   })
+  if (language) params.set('language', language)
+  else params.set('detect_language', 'true')
+  for (const k of [...new Set(keyterms.map((k) => k.trim()).filter(Boolean))].slice(0, MAX_KEYTERMS)) params.append('keyterm', k)
   const res = await fetch(`${ENDPOINT}?${params}`, {
     method: 'POST',
     headers: { Authorization: `Token ${env.deepgramKey()}`, 'Content-Type': mimeType || 'application/octet-stream' },

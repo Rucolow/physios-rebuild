@@ -3,7 +3,7 @@ import { adminDb } from '@/lib/supabase/server'
 import { localDate } from '@/lib/date'
 import { transcribe } from '@/lib/stt/deepgram'
 import { interpretTranscript, type InterpretedSegment } from '@/lib/llm/interpret'
-import { buildRoster } from '@/lib/roster'
+import { buildRoster, rosterKeyterms } from '@/lib/roster'
 import type { Trainer } from '@/lib/auth'
 
 export type ConfirmReason = 'player' | 'protocol' | 'menu_row' | 'schedule' | null
@@ -108,7 +108,7 @@ async function processMemo(
   let marked: string
   try {
     if (audio) {
-      const t = await transcribe(audio.audio, audio.mimeType)
+      const t = await transcribe(audio.audio, audio.mimeType, await rosterKeyterms(trainer.id))
       marked = t.marked
       await db
         .from('voice_memo')

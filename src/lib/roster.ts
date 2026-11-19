@@ -93,3 +93,15 @@ export async function buildRoster(trainerId: string): Promise<{ roster: RosterPl
   const { data: protocols } = await db.from('protocol').select('id, title').order('title')
   return { roster, protocols: protocols ?? [] }
 }
+
+/** 文字起こしに渡す選手の名前（姓名・姓・名・呼び方）。名前は聞き取りを誤りやすいので Deepgram の keyterm にする */
+export async function rosterKeyterms(trainerId: string): Promise<string[]> {
+  const { data } = await adminDb()
+    .from('player')
+    .select('family_name, given_name, aliases')
+    .eq('trainer_id', trainerId)
+    .eq('is_active', true)
+  // 上限で切られたときに姓名が残るよう、姓名を先に並べる
+  const players = data ?? []
+  return [...players.map((p) => `${p.family_name}${p.given_name}`), ...players.flatMap((p) => p.aliases ?? [])]
+}
