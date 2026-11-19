@@ -24,7 +24,7 @@ create table player (
   aliases text[] not null default '{}',
   team text,
   -- 選手の画面の URL に入る。ログインなしで本人の画面だけを開く
-  share_token text not null unique default encode(gen_random_bytes(18), 'base64url'),
+  share_token text not null unique default translate(encode(gen_random_bytes(18), 'base64'), '+/', '-_'),
   is_active boolean not null default true,
   is_fictional boolean not null default false,
   created_at timestamptz not null default now()

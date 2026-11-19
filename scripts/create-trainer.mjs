@@ -8,6 +8,7 @@
 //
 // 架空の選手の状態（怪我・時期・次の試合）は試用の出発点として置く見本であり、臨床の判断ではない。
 // 選手の名前・日程は架空。プロトコルは取り込み済みの清水のものから題名で選ぶ。
+import { randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const args = Object.fromEntries(
@@ -43,12 +44,13 @@ if (!user) {
   user = created.user
 }
 const created = { user }
-const { data: trainer, error: e2 } = await db
-  .from('trainer')
-  .insert({ auth_user_id: created.user.id, name: args.name, time_zone: tz })
-  .select('id')
-  .single()
-if (e2) throw e2
+// 途中で止まって流し直したときは、既にあるトレーナーを使う
+let { data: trainer } = await db.from('trainer').select('id').eq('auth_user_id', created.user.id).maybeSingle()
+if (!trainer) {
+  const r = await db.from('trainer').insert({ auth_user_id: created.user.id, name: args.name, time_zone: tz }).select('id').single()
+  if (r.error) throw r.error
+  trainer = r.data
+}
 
 const PROTOCOL_TITLE = args.protocol ?? 'ハムストリングス肉離れ・中程度・なし'
 const { data: protocol } = await db.from('protocol').select('id, title').eq('title', PROTOCOL_TITLE).single()
@@ -64,6 +66,7 @@ const { data: player, error: e3 } = await db
     aliases: ['ヤマト', 'もり'],
     team: 'U-19（架空）',
     is_fictional: true,
+    share_token: randomBytes(18).toString('base64url'),
   })
   .select('id, share_token')
   .single()
