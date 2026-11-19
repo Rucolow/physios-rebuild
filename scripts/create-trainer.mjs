@@ -1,17 +1,22 @@
 // トレーナーのアカウントと、試用のための架空の選手一人を作る。
 //
-//   node scripts/create-trainer.mjs --email a@b.c --password '...' --name '清水 遼'
+//   node scripts/create-trainer.mjs --email a@b.c --name '清水 遼'
+//
+// パスワードはチャットやコマンドに書かない。先に本人（か Rucolow）が Supabase の Dashboard の
+// Authentication → Users → Add user でメールとパスワードを決めて作り、このスクリプトはそのメールで
+// ユーザーを探してトレーナーに結びつける。--password を渡したときだけ、ここでユーザーを作る。
 //
 // 架空の選手の状態（怪我・時期・次の試合）は試用の出発点として置く見本であり、臨床の判断ではない。
 // 選手の名前・日程は架空。プロトコルは取り込み済みの清水のものから題名で選ぶ。
+import { randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, v, i, a) => (v.startsWith('--') ? [...acc, [v.slice(2), a[i + 1]]] : acc), []),
 )
-for (const k of ['email', 'password', 'name']) if (!args[k]) throw new Error(`--${k} が要ります`)
+for (const k of ['email', 'name']) if (!args[k]) throw new Error(`--${k} が要ります`)
 
-const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 })
 const tz = args.tz ?? 'Europe/Berlin'
@@ -22,18 +27,30 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10)
 }
 
-const { data: created, error: e1 } = await db.auth.admin.createUser({
-  email: args.email,
-  password: args.password,
-  email_confirm: true,
-})
-if (e1) throw e1
-const { data: trainer, error: e2 } = await db
-  .from('trainer')
-  .insert({ auth_user_id: created.user.id, name: args.name, time_zone: tz })
-  .select('id')
-  .single()
-if (e2) throw e2
+async function findUser(email) {
+  for (let page = 1; ; page++) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage: 200 })
+    if (error) throw error
+    const u = data.users.find((x) => x.email?.toLowerCase() === email.toLowerCase())
+    if (u) return u
+    if (data.users.length < 200) return null
+  }
+}
+let user = await findUser(args.email)
+if (!user) {
+  if (!args.password) throw new Error(`${args.email} のユーザーがありません（Dashboard の Authentication → Users → Add user で先に作る）`)
+  const { data: created, error: e1 } = await db.auth.admin.createUser({ email: args.email, password: args.password, email_confirm: true })
+  if (e1) throw e1
+  user = created.user
+}
+const created = { user }
+// 途中で止まって流し直したときは、既にあるトレーナーを使う
+let { data: trainer } = await db.from('trainer').select('id').eq('auth_user_id', created.user.id).maybeSingle()
+if (!trainer) {
+  const r = await db.from('trainer').insert({ auth_user_id: created.user.id, name: args.name, time_zone: tz }).select('id').single()
+  if (r.error) throw r.error
+  trainer = r.data
+}
 
 const PROTOCOL_TITLE = args.protocol ?? 'ハムストリングス肉離れ・中程度・なし'
 const { data: protocol } = await db.from('protocol').select('id, title').eq('title', PROTOCOL_TITLE).single()
@@ -49,6 +66,7 @@ const { data: player, error: e3 } = await db
     aliases: ['ヤマト', 'もり'],
     team: 'U-19（架空）',
     is_fictional: true,
+    share_token: randomBytes(18).toString('base64url'),
   })
   .select('id, share_token')
   .single()

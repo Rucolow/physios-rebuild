@@ -24,7 +24,7 @@ create table player (
   aliases text[] not null default '{}',
   team text,
   -- 選手の画面の URL に入る。ログインなしで本人の画面だけを開く
-  share_token text not null unique default encode(gen_random_bytes(18), 'base64url'),
+  share_token text not null unique default translate(encode(gen_random_bytes(18), 'base64'), '+/', '-_'),
   is_active boolean not null default true,
   is_fictional boolean not null default false,
   created_at timestamptz not null default now()
@@ -235,3 +235,11 @@ end $$;
 insert into storage.buckets (id, name, public)
 values ('voice', 'voice', false)
 on conflict (id) do nothing;
+
+-- 権限（新しいプロジェクトの既定に頼らない）: service role だけが読み書きし、anon / authenticated は触れない
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+revoke all on all tables in schema public from anon, authenticated;
+
+-- API（PostgREST）に新しいテーブルを読み込ませる
+notify pgrst, 'reload schema';

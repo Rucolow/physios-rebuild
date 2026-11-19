@@ -5,7 +5,7 @@ import { createServerClient } from '@supabase/ssr'
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
   const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_ANON_KEY
+  const key = (process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY)
   if (!url || !key) return response
   const sb = createServerClient(url, key, {
     cookies: {

@@ -1,39 +1,56 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fillDay, pickForDay, resolveAbDay, rotate } from './fill.ts'
+import { pickForDay, resolveAbDay, takesForDay, type FillRule } from './fill.ts'
+
+const g = (dayGroup: FillRule['dayGroup']): FillRule => ({ categoryType: 'general', dailyPickLimit: null, dayGroup })
+const cardio: FillRule = { categoryType: 'cardio', dailyPickLimit: null, dayGroup: 'both' }
+const high: FillRule = { categoryType: 'high_intensity', dailyPickLimit: null, dayGroup: 'both' }
 
 test('日曜は休み、平日は A/B を交互に数える', () => {
   // 2026-11-02 は月曜
   assert.deepEqual(resolveAbDay('2026-11-02', '2026-11-02'), { isRestDay: false, dayGroup: 'A', workdayIndex: 0 })
   assert.deepEqual(resolveAbDay('2026-11-02', '2026-11-03'), { isRestDay: false, dayGroup: 'B', workdayIndex: 1 })
   assert.equal(resolveAbDay('2026-11-02', '2026-11-08').isRestDay, true)
-  // 土曜(11/7)は 5 日目、翌月曜(11/9)は日曜を飛ばして 6 日目
   assert.deepEqual(resolveAbDay('2026-11-02', '2026-11-09'), { isRestDay: false, dayGroup: 'A', workdayIndex: 6 })
 })
 
-test('確保してから周回し、量に達したら止める', () => {
-  const cells = [
-    { poolSize: 3, rule: { categoryType: 'general' as const, dailyPickLimit: null, dayGroup: 'both' as const } },
-    { poolSize: 6, rule: { categoryType: 'general' as const, dailyPickLimit: null, dayGroup: 'A' as const } },
-    { poolSize: 2, rule: { categoryType: 'cardio' as const, dailyPickLimit: null, dayGroup: 'both' as const } },
-    { poolSize: 5, rule: { categoryType: 'high_intensity' as const, dailyPickLimit: null, dayGroup: 'both' as const } },
+test('見出しから 1 種目、A は下半身・B は上半身、自転車とジョギングは日替わりで片方、高強度は 2', () => {
+  const shelf = [
+    { size: 3, rule: g('both') }, // 準備
+    { size: 3, rule: g('A') }, // 下半身
+    { size: 3, rule: g('B') }, // 上半身
+    { size: 3, rule: cardio }, // 自転車
+    { size: 3, rule: cardio }, // ジョギング
+    { size: 5, rule: high },
   ]
-  const a = fillDay(cells, { dayGroup: 'A', workdayIndex: 0 }, 8)
-  // 確保 cardio 1 + high 2 = 3、残り 5 を見出し 0,1 で周回 → 3 と 2... 0 は 3 で尽きる
-  assert.deepEqual(a.map((p) => p.take), [3, 2, 1, 2])
-  const b = fillDay(cells, { dayGroup: 'B', workdayIndex: 1 }, 8)
-  assert.deepEqual(b.map((p) => p.take), [3, 0, 1, 2])
+  assert.deepEqual(takesForDay(shelf, 0, null), [1, 1, 0, 1, 0, 2])
+  assert.deepEqual(takesForDay(shelf, 1, null), [1, 0, 1, 0, 1, 2])
 })
 
-test('量が無いプロトコルでは全件', () => {
-  const r = fillDay([{ poolSize: 4, rule: null }], { dayGroup: 'A', workdayIndex: 3 }, null)
-  assert.deepEqual(r, [{ take: 4, offset: null }])
+test('A の日は 16 に足りない分を下半身に足し、B の日は足さない', () => {
+  const shelf = [
+    { size: 3, rule: g('both') },
+    { size: 3, rule: g('A') },
+    { size: 3, rule: g('A') },
+    { size: 3, rule: g('B') },
+    { size: 3, rule: cardio },
+  ]
+  // A: 準備1 + 下半身1+1 + 自転車1 = 4 → 下半身に 1 本ずつ足して 7（下半身は各 3 で尽きる）
+  assert.deepEqual(takesForDay(shelf, 0, 16), [1, 3, 3, 0, 1])
+  assert.deepEqual(takesForDay(shelf, 0, 6), [1, 2, 2, 0, 1])
+  assert.deepEqual(takesForDay(shelf, 1, 16), [1, 0, 0, 1, 1])
 })
 
-test('巡回は前日の続きから採る', () => {
-  assert.deepEqual(rotate(['a', 'b', 'c', 'd'], 2, 3), ['d', 'a'])
-  const shelf = [{ items: ['a', 'b', 'c', 'd'], rule: { categoryType: 'cardio' as const, dailyPickLimit: null, dayGroup: 'both' as const } }]
-  assert.deepEqual(pickForDay(shelf, { dayGroup: 'A', workdayIndex: 0 }, 16), [['a']])
-  assert.deepEqual(pickForDay(shelf, { dayGroup: 'B', workdayIndex: 1 }, 16), [['b']])
-  assert.deepEqual(pickForDay(shelf, { dayGroup: 'A', workdayIndex: 2 }, 16), [['c']])
+test('見出しの中は、前にその見出しが出た日の続きから進む', () => {
+  const shelf = [
+    { items: ['bike10', 'bike20', 'bike30'], rule: cardio },
+    { items: ['jog10', 'jog20', 'jog30'], rule: cardio },
+    { items: ['p1', 'p2', 'p3'], rule: g('both') },
+  ]
+  const day = (i: number) => pickForDay(shelf, { dayGroup: i % 2 === 0 ? 'A' : 'B', workdayIndex: i }, null)
+  assert.deepEqual(day(0), [['bike10'], [], ['p1']])
+  assert.deepEqual(day(1), [[], ['jog10'], ['p2']])
+  assert.deepEqual(day(2), [['bike20'], [], ['p3']])
+  assert.deepEqual(day(4), [['bike30'], [], ['p2']])
+  assert.deepEqual(day(6), [['bike10'], [], ['p1']])
 })
