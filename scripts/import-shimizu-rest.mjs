@@ -11,7 +11,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const src = process.env.SOURCE_DB_URL
 if (!src) throw new Error('SOURCE_DB_URL が要ります')
-const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 })
 

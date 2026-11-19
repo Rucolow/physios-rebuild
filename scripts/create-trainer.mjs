@@ -16,7 +16,7 @@ const args = Object.fromEntries(
 )
 for (const k of ['email', 'name']) if (!args[k]) throw new Error(`--${k} が要ります`)
 
-const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 })
 const tz = args.tz ?? 'Europe/Berlin'
