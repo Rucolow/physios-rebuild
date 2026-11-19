@@ -54,3 +54,14 @@ test('見出しの中は、前にその見出しが出た日の続きから進�
   assert.deepEqual(day(4), [['bike30'], [], ['p2']])
   assert.deepEqual(day(6), [['bike10'], [], ['p1']])
 })
+
+test('行を変えた日が B に当たるときは、新しい行の 0 番目の稼働日を B として組む', () => {
+  const shelf = [
+    { items: ['p1', 'p2'], rule: g('both') },
+    { items: ['l1', 'l2'], rule: g('A') },
+    { items: ['u1', 'u2'], rule: g('B') },
+  ]
+  assert.deepEqual(pickForDay(shelf, { dayGroup: 'B', workdayIndex: 0 }, null), [['p1'], [], ['u1']])
+  assert.deepEqual(pickForDay(shelf, { dayGroup: 'A', workdayIndex: 1 }, null), [['p2'], ['l1'], []])
+  assert.deepEqual(pickForDay(shelf, { dayGroup: 'B', workdayIndex: 2 }, null), [['p1'], [], ['u2']])
+})

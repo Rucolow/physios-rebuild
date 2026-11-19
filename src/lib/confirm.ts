@@ -91,11 +91,12 @@ export async function confirmDigest(trainer: Trainer, answers: Record<string, Dr
         injury_episode_id: ep?.id ?? null,
         written_on: d.local_date,
         summary: a.summary ?? seg.summary,
-        subjective: seg.subjective,
-        objective: seg.objective,
-        assessment: seg.assessment,
-        treatment: seg.treatment,
-        plan: seg.plan,
+        // トレーナーが文を直したときは、直す前の文字起こしから作った項目を残さない（直した文と食い違うため）
+        subjective: a.summary ? null : seg.subjective,
+        objective: a.summary ? null : seg.objective,
+        assessment: a.summary ? null : seg.assessment,
+        treatment: a.summary ? null : seg.treatment,
+        plan: a.summary ? null : seg.plan,
         source_draft_id: d.id,
         confirmed_by: trainer.id,
       })
@@ -104,7 +105,29 @@ export async function confirmDigest(trainer: Trainer, answers: Record<string, Dr
     if (d.kind === 'schedule') {
       if (!seg.kickoff_at) throw new ConfirmError('新しい試合の日時が読めませんでした')
       const { data: team } = playerId ? await db.from('player').select('team').eq('id', playerId).single() : { data: null }
-      await db.from('match_schedule').insert({ trainer_id: trainer.id, team: team?.team ?? null, kickoff_at: seg.kickoff_at, note: seg.schedule_note })
+      // 「日程が変わった」話なので、いま一番近い試合を新しい日時で置き換える
+      const { data: prev } = await db
+        .from('match_schedule')
+        .select('id, team, opponent')
+        .eq('trainer_id', trainer.id)
+        .is('replaced_by', null)
+        .gte('kickoff_at', now)
+        .order('kickoff_at')
+        .limit(1)
+        .maybeSingle()
+      const { data: next, error: e4 } = await db
+        .from('match_schedule')
+        .insert({
+          trainer_id: trainer.id,
+          team: team?.team ?? prev?.team ?? null,
+          opponent: prev?.opponent ?? null,
+          kickoff_at: seg.kickoff_at,
+          note: seg.schedule_note,
+        })
+        .select('id')
+        .single()
+      if (e4) throw e4
+      if (prev) await db.from('match_schedule').update({ replaced_by: next.id }).eq('id', prev.id)
     }
     await db.from('draft').update({ status: 'confirmed', answer: a, player_id: playerId, resolved_at: now }).eq('id', d.id)
   }

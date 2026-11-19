@@ -37,7 +37,7 @@ export async function loadBrief(trainer: Trainer): Promise<BriefData> {
     db.from('player').select('id, family_name, given_name, share_token').eq('trainer_id', trainer.id).eq('is_active', true).order('family_name'),
     db
       .from('prescription')
-      .select('player_id, target_on, is_rest_day, day_group, items:prescription_item(done_at)')
+      .select('player_id, target_on, is_rest_day, day_group, row:menu_row_id(period_raw), items:prescription_item(done_at)')
       .in('player_id', eps.map((e) => e.player_id).concat(['00000000-0000-0000-0000-000000000000']))
       .in('target_on', [today, yesterday]),
     db.from('draft').select('id', { count: 'exact', head: true }).eq('trainer_id', trainer.id).eq('status', 'pending').lt('local_date', today),
@@ -45,8 +45,8 @@ export async function loadBrief(trainer: Trainer): Promise<BriefData> {
       .from('match_schedule')
       .select('kickoff_at, note, opponent')
       .eq('trainer_id', trainer.id)
-      .gte('kickoff_at', new Date().toISOString())
-      .order('created_at', { ascending: false }),
+      .is('replaced_by', null)
+      .gte('kickoff_at', new Date().toISOString()),
     db
       .from('karte_entry')
       .select('player_id, written_on, summary, confirmed_at')
@@ -54,7 +54,7 @@ export async function loadBrief(trainer: Trainer): Promise<BriefData> {
       .order('confirmed_at', { ascending: false }),
   ])
 
-  // 同じ試合の日程が変わったときは新しい行を足しているので、一番早い試合を出す
+  // 日程が変わった試合は replaced_by で古い行を外してあるので、残りから一番早い試合を出す
   const upcoming = [...(matches ?? [])].sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at))[0]
 
   return {
@@ -73,7 +73,16 @@ export async function loadBrief(trainer: Trainer): Promise<BriefData> {
         id: p.id,
         name: personName(p.family_name, p.given_name),
         token: p.share_token,
-        episode: e ? { label: e.label, week: weekSince(e.injured_on, today), period: e.position?.period_raw ?? null } : null,
+        // 時期は今日のメニューを組んだ行を出す（明日から変える時期を今日に見せない）
+        episode: e
+          ? {
+              label: e.label,
+              week: weekSince(e.injured_on, today),
+              period:
+                (t?.row as unknown as { period_raw: string } | null)?.period_raw ??
+                (e.position ? (e.position.anchor_on <= today ? e.position.period_raw : `明日から ${e.position.period_raw}`) : null),
+            }
+          : null,
         today: t ? { rest: t.is_rest_day, count: (t.items as unknown[]).length, dayGroup: t.day_group } : null,
         yesterday: y && !y.is_rest_day ? { done: yItems.filter((i) => i.done_at).length, total: yItems.length } : null,
         lastKarte: k ? { on: k.written_on, summary: k.summary } : null,

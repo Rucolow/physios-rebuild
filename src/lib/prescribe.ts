@@ -35,7 +35,17 @@ export async function prescribe(episodeId: string, targetOn: string) {
   if (existing && existing.menu_position_id === pos.id) return existing.id
   if (existing) await db.from('prescription').delete().eq('id', existing.id)
 
-  const ab = resolveAbDay(pos.anchor_on, targetOn)
+  // A/B は怪我の最初の行の日から数える（時期を変えても交互が続く）。行の中の種目の進み方は今の行の日から数える
+  const { data: first } = await db
+    .from('menu_position')
+    .select('anchor_on')
+    .eq('injury_episode_id', episodeId)
+    .order('anchor_on')
+    .limit(1)
+    .single()
+  const rowDay = resolveAbDay(pos.anchor_on, targetOn)
+  const episodeDay = resolveAbDay(first?.anchor_on ?? pos.anchor_on, targetOn)
+  const ab = rowDay.isRestDay || episodeDay.isRestDay ? rowDay : { ...rowDay, dayGroup: episodeDay.dayGroup }
   const budget = (ep.protocol as unknown as { daily_volume_target: number | null } | null)?.daily_volume_target ?? null
 
   const base = {

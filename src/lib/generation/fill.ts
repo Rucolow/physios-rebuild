@@ -77,8 +77,10 @@ export function takesForDay(
   shelf: readonly { size: number; rule: FillRule | null }[],
   workdayIndex: number,
   budget: number | null,
+  /** 0 なら行の 0 番目の稼働日が A。1 なら B（行を変えても A/B の交互を途切れさせないため） */
+  phase = 0,
 ): number[] {
-  const day: 'A' | 'B' = workdayIndex % 2 === 0 ? 'A' : 'B'
+  const day: 'A' | 'B' = (workdayIndex + phase) % 2 === 0 ? 'A' : 'B'
   const rules = shelf.map((s) => s.rule ?? UNREGISTERED)
   const takes = shelf.map(() => 0)
 
@@ -122,11 +124,13 @@ export function pickForDay<T>(
   budget: number | null,
 ): T[][] {
   const sizes = shelf.map((s) => ({ size: s.items.length, rule: s.rule }))
+  // 対象日の A/B は ab.dayGroup に従う（数え始めは怪我の最初の行の日。行の中の種目の進み方は ab.workdayIndex から）
+  const phase = (ab.workdayIndex % 2 === 0) === (ab.dayGroup === 'A') ? 0 : 1
   const used = shelf.map(() => 0)
   for (let d = 0; d < ab.workdayIndex; d += 1) {
-    takesForDay(sizes, d, budget).forEach((t, i) => (used[i] += t))
+    takesForDay(sizes, d, budget, phase).forEach((t, i) => (used[i] += t))
   }
-  const today = takesForDay(sizes, ab.workdayIndex, budget)
+  const today = takesForDay(sizes, ab.workdayIndex, budget, phase)
   return shelf.map((s, i) => {
     const out: T[] = []
     for (let k = 0; k < today[i]; k += 1) out.push(s.items[(used[i] + k) % s.items.length])
