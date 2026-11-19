@@ -161,7 +161,7 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
             <div className="glass overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
               {failed.map((m) => (
                 <div key={m.id} className="flex items-center gap-4 px-5 py-3">
-                  <span className="w-11 shrink-0 font-mono text-sm text-navy-400 nums">{m.time}</span>
+                  <span className="min-w-11 shrink-0 font-mono text-sm text-navy-400 nums">{m.time}</span>
                   <p className="min-w-0 flex-1 text-sm text-navy-200">文字起こしか解釈に失敗しました。</p>
                   {m.audioUrl && <AudioButton url={m.audioUrl} start={0} />}
                   <RetryButton memoId={m.id} />
