@@ -55,18 +55,27 @@ export async function ingestMemo(
   return processMemo(trainer, { id: memo.id, local_date: memo.local_date }, input.kind === 'voice' ? { audio: input.audio, mimeType: input.mimeType } : null)
 }
 
+/** 処理が途中で止まった（サーバの時間切れなど）とみなすまでの時間。上限 300 秒より長く取る */
+export const STUCK_AFTER_MS = 6 * 60 * 1000
+
+/** やり直しの対象か: 失敗したもの、または受け取ってから長く経っても解釈まで終わっていないもの */
+export function needsRetry(memo: { status: string; created_at: string }, now = Date.now()): boolean {
+  if (memo.status === 'failed') return true
+  return (memo.status === 'received' || memo.status === 'transcribed') && now - new Date(memo.created_at).getTime() > STUCK_AFTER_MS
+}
+
 /** 処理できなかった録音を、残っている音声（または文）から最初からやり直す */
 export async function reprocessMemo(trainer: Trainer, memoId: string): Promise<{ memoId: string; drafts: number }> {
   const db = adminDb()
   const { data: memo, error } = await db
     .from('voice_memo')
-    .select('id, trainer_id, local_date, input_kind, storage_path, transcript, status')
+    .select('id, trainer_id, local_date, input_kind, storage_path, transcript, status, created_at')
     .eq('id', memoId)
     .single()
   if (error) throw error
   // 担当関係はサーバ側で確かめる
   if (memo.trainer_id !== trainer.id) throw new Error('この録音を扱う権限がありません')
-  if (memo.status !== 'failed') return { memoId, drafts: 0 }
+  if (!needsRetry(memo)) return { memoId, drafts: 0 }
   // 前回の途中で入った下書きが残っていれば、未確定のものだけ消してから作り直す
   await db.from('draft').delete().eq('voice_memo_id', memoId).eq('status', 'pending')
   await db.from('voice_memo').update({ status: 'received', error: null }).eq('id', memoId)

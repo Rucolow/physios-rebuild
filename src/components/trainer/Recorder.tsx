@@ -39,8 +39,9 @@ export function Recorder() {
     setState('processing')
     try {
       const res = await fetch('/api/memo', { method: 'POST', body })
-      const json = (await res.json()) as { message: string }
-      setMessage(json.message)
+      const json = (await res.json().catch(() => null)) as { message: string } | null
+      // 受け取った後にサーバが時間切れになったときは JSON が返らない。録音は先に保存してあり、夜の画面に「やり直す」で出る
+      setMessage(json?.message ?? '処理が途中で止まりました。録音は残っていて、夜の画面からやり直せます。')
       router.refresh()
     } catch {
       setMessage('いま記録の処理ができません。録音は残っていません。もう一度お試しください。')

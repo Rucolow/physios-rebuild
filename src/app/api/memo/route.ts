@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { currentTrainer } from '@/lib/auth'
 import { ingestMemo } from '@/lib/memo'
 
-export const maxDuration = 60
+// 2 分の録音（複数の選手）で 35 秒かかった（2026-11-19）。解釈が長引いても切れないよう、上限を広く取る
+export const maxDuration = 300
 
 export async function POST(req: Request) {
   const trainer = await currentTrainer()

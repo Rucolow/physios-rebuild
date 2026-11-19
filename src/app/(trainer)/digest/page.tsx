@@ -1,10 +1,14 @@
 import { requireTrainer } from '@/lib/auth'
 import { adminDb } from '@/lib/supabase/server'
-import { localDate, localTime, jaDate, weekSince } from '@/lib/date'
+import { addDays, localDate, localTime, jaDate, weekSince } from '@/lib/date'
+import { needsRetry } from '@/lib/memo'
 import { personName } from '@/lib/format/name'
 import { activeEpisodes } from '@/lib/roster'
 import type { InterpretedSegment } from '@/lib/llm/interpret'
 import { DigestView, type DigestItem, type DigestContext } from '@/components/trainer/DigestView'
+
+// 「やり直す」は録音を最初から処理し直すので、録音の受け口と同じ上限にする
+export const maxDuration = 300
 
 export default async function DigestPage() {
   const trainer = await requireTrainer()
@@ -30,19 +34,22 @@ export default async function DigestPage() {
       .order('seq'),
     db
       .from('voice_memo')
-      .select('id, recorded_at, storage_path, error')
+      .select('id, recorded_at, local_date, storage_path, error, status, created_at')
       .eq('trainer_id', trainer.id)
-      .eq('status', 'failed')
-      .eq('local_date', today)
+      .in('status', ['failed', 'received', 'transcribed'])
+      .gte('local_date', addDays(today, -7))
       .order('recorded_at'),
     db.from('player').select('id, family_name, given_name').eq('trainer_id', trainer.id).eq('is_active', true).order('family_name'),
     activeEpisodes(trainer.id),
   ])
 
+  // 失敗したものと、途中で止まったもの（時間切れなど）。確定するかやり直すまで、7 日間は出し続ける
+  const stuck = (failed ?? []).filter((m) => needsRetry(m))
+
   // 元音声（非公開の置き場から1時間だけ開けるURL）
   const paths = [...(pending ?? []), ...(doneToday ?? [])]
     .map((d) => (d.voice_memo as unknown as { storage_path: string | null } | null)?.storage_path)
-    .concat((failed ?? []).map((m) => m.storage_path))
+    .concat(stuck.map((m) => m.storage_path))
     .filter((p): p is string => !!p)
   const signed = new Map<string, string>()
   if (paths.length) {
@@ -103,9 +110,10 @@ export default async function DigestPage() {
       dateLabel={{ full: d.full, wd: d.wd }}
       pending={(pending ?? []).map(toItem)}
       resolved={(doneToday ?? []).map(toItem)}
-      failed={(failed ?? []).map((m) => ({
+      failed={stuck.map((m) => ({
         id: m.id,
-        time: localTime(trainer.time_zone, m.recorded_at),
+        // 前の日のものは日付も付ける
+        time: (m.local_date === today ? '' : `${Number(m.local_date.slice(5, 7))}/${Number(m.local_date.slice(8, 10))} `) + localTime(trainer.time_zone, m.recorded_at),
         audioUrl: m.storage_path ? (signed.get(m.storage_path) ?? null) : null,
       }))}
       ctx={ctx}
