@@ -8,6 +8,8 @@ import type { MonthlyCalendar, ScheduleEvent } from '@/lib/types'
 export interface TeamRef {
   id: string
   name: string
+  /** 指導者ボードのリンクの鍵（0005 の適用前は null） */
+  coach_token?: string | null
 }
 
 export type Participation = 'full' | 'limited' | 'out' | null
@@ -75,7 +77,10 @@ export function zonedIso(date: string, time: string, tz: string): string {
 }
 
 export async function listTeams(trainerId: string): Promise<TeamRef[]> {
-  const { data } = await adminDb().from('team').select('id, name').eq('trainer_id', trainerId).order('sort_order').order('created_at')
+  const db = adminDb()
+  const withToken = await db.from('team').select('id, name, coach_token').eq('trainer_id', trainerId).order('sort_order').order('created_at')
+  if (!withToken.error) return withToken.data ?? []
+  const { data } = await db.from('team').select('id, name').eq('trainer_id', trainerId).order('sort_order').order('created_at')
   return data ?? []
 }
 

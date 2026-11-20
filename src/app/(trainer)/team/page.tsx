@@ -4,6 +4,8 @@ import { List, ListRow, Num } from '@/components/ui'
 import { listRow } from '@/components/ui/ListRow'
 import { AddTeamEventButton } from '@/components/trainer/AddTeamEventButton'
 import { AddTeamButton, ScoreButton } from '@/components/trainer/TeamTools'
+import { CopyLink } from '@/components/trainer/CopyLink'
+import { headers } from 'next/headers'
 import { MonthlyCalendar } from '@/components/trainer/MonthlyCalendar'
 import { SIGNAL, type Signal } from '@/lib/design/signal'
 import { requireTrainer } from '@/lib/auth'
@@ -21,6 +23,8 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   const params = await searchParams
   const trainer = await requireTrainer()
   const data = await loadTeam(trainer, params.t ?? null)
+  const h = await headers()
+  const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`
   const tab: Tab = params.tab === 'results' || params.tab === 'players' ? params.tab : 'schedule'
   const month = tab === 'schedule' && params.view === 'month'
   const now = new Date(`${data.today}T00:00:00Z`)
@@ -94,7 +98,10 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       </>}
 
       {tab === 'results' && <Results data={data} />}
-      {tab === 'players' && <Players players={data.players} />}
+      {tab === 'players' && <>
+        <CoachLinks teams={data.current ? [data.current] : data.teams} origin={origin} />
+        <Players players={data.players} />
+      </>}
     </div>
   </main>
 }
@@ -206,6 +213,20 @@ const PART = {
   out: { label: '離脱中', tone: 'act' as Signal },
   limited: { label: '制限付き', tone: 'watch' as Signal },
   full: { label: '完全参加', tone: 'good' as Signal },
+}
+
+/** 指導者ボードのリンク（チームごと・ログインなし。見えるのは参加区分・制限・復帰見込みと予定だけ） */
+function CoachLinks({ teams, origin }: { teams: { id: string; name: string; coach_token?: string | null }[]; origin: string }) {
+  const withToken = teams.filter((t) => t.coach_token)
+  if (withToken.length === 0) return null
+  return <section className="glass space-y-3 rounded-card border border-layer-10 px-5 py-4">
+    <h2 className="text-sm font-bold text-white">指導者用のリンク</h2>
+    <p className="text-2xs text-navy-400">監督やコーチと共有してください。見えるのは参加区分・制限・復帰見込みと予定だけで、カルテや痛みは見えません。</p>
+    {withToken.map((t) => <div key={t.id} className="space-y-1">
+      {withToken.length > 1 && <p className="text-2xs font-bold text-navy-300">{t.name}</p>}
+      <CopyLink url={`${origin}/c/${t.coach_token}`} openLabel="指導者の画面を開く" />
+    </div>)}
+  </section>
 }
 
 function Players({ players }: { players: TeamPlayer[] }) {
