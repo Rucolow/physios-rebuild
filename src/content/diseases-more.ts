@@ -39,6 +39,17 @@ UEFA の研究では、ヨーロッパのプロクラブで 7 シーズンに 62
 ${MAPPING_NOTE}`,
     },
     {
+      id: 'course',
+      title: '急性の怪我か、長く続く痛みか',
+      body: `ドーハ合意はどこが痛みの源かで分けますが、それぞれの中の重さの段階は決めていません [2]。復帰までの見通しを大きく分けるのは、はっきりした受傷の場面がある急性の怪我か、何週も何か月も続く痛みか、という違いです。
+
+**急性の内転筋の怪我**: 男子アスリート 81 人の前向きコホートでは、MRI で 0〜3 の段階（0 は所見なし、3 は完全断裂・剥離）に分け、基準に沿ったリハビリを行いました。0〜2 の段階では、痛みが消えるまで中央値 13 日、チーム練習に完全に戻るまで 18 日でした。3 の段階では、チーム練習まで中央値 78 日でした [6]。1 年以内の再受傷は 8% で、痛みが消えてから復帰した選手では 5%、そうでない選手では 21% でした [6]。同じ集団で、最初の診察で長内転筋の付け根の圧痛や触れて分かるへこみがあると、復帰が遅れる傾向がありました [7]。
+
+**長く続く鼠径部痛**: 下の「リハビリ」の運動療法の試験の対象はこちらです [4]。
+
+股関節が原因の痛みのうち、大腿骨寛骨臼インピンジメント（FAI）症候群は、症状・診察所見・画像の三つがそろったときにだけ診断する、とワーウィック合意は定めています。画像で骨の形の特徴があるだけでは診断しません [8]。`,
+    },
+    {
       id: 'rehab',
       title: 'リハビリ',
       body: `長く続く内転筋の鼠径部痛（中央値 40 週）のアスリート 68 人の無作為化試験では、骨盤まわりの筋肉、特に内転筋の筋力と協調性を鍛える運動療法のグループで 23 人が痛みなく元の競技に戻りました。運動療法を含まない理学療法のグループでは 4 人でした [4]。
@@ -59,8 +70,12 @@ ${MAPPING_NOTE}`,
     { n: 3, text: 'Hölmich P. Long-standing groin pain in sportspeople falls into three primary patterns, a “clinical entity” approach: a prospective study of 207 patients. Br J Sports Med. 2007;41(4):247–252.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC2658954' },
     { n: 4, text: 'Hölmich P, et al. Effectiveness of active physical training as treatment for long-standing adductor-related groin pain in athletes: randomised trial. Lancet. 1999;353(9151):439–443.', url: 'https://pubmed.ncbi.nlm.nih.gov/9989713/' },
     { n: 5, text: 'Harøy J, et al. The Adductor Strengthening Programme prevents groin problems among male football players: a cluster-randomised controlled trial. Br J Sports Med. 2019;53(3):150–157.', url: 'https://bjsm.bmj.com/content/53/3/150.info' },
+    { n: 6, text: 'Serner A, et al. Return to sport after criteria-based rehabilitation of acute adductor injuries in male athletes: a prospective cohort study. Orthop J Sports Med. 2020;8(1):2325967119897247.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6990618' },
+    { n: 7, text: 'Serner A, et al. Associations between initial clinical examination and imaging findings and return-to-sport in male athletes with acute adductor injuries: a prospective cohort study. Am J Sports Med. 2020;48(5):1151–1159.', url: 'https://doi.org/10.1177/0363546520908610' },
+    { n: 8, text: 'Griffin DR, et al. The Warwick Agreement on femoroacetabular impingement syndrome (FAI syndrome): an international consensus statement. Br J Sports Med. 2016;50(19):1169–1176.', url: 'https://doi.org/10.1136/bjsports-2016-096743' },
   ],
   keywords: ['鼠径', 'グロイン', 'グロウイン', '内転筋', '恥骨', 'groin'],
+  quelle: ['research-0043'],
 }
 
 const rectusFemoris: DiseaseGuide = {
@@ -142,14 +157,33 @@ const acl: DiseaseGuide = {
     {
       id: 'classification',
       title: '分類',
-      body: `靱帯が完全に切れているか（完全断裂）、一部が残っているか（部分断裂）で分けられます。上のプロサッカーの 15 年の研究では、完全断裂が 140 人、部分断裂が 17 人でした [2]。
+      body: `ACL の総説は、実際には「完全に切れているか（完全断裂）、一部が残っているか（部分断裂）」の二つで考えます [7]。靱帯の怪我に慣例で使う I〜III 度の分け方は、ACL では治療の方針を決めません。ACL は自分で治る力が乏しく、完全に切れた靱帯がつながることは期待できないためです [7]。上のプロサッカーの 15 年の研究では、完全断裂が 140 人、部分断裂が 17 人でした [2]。
+
+部分断裂なら必ず経過が良いわけでもありません。部分断裂を追った研究では、切れた線維の割合が大きいと、完全断裂と同じような機能の低下に進む例がありました [8]。部分断裂か完全断裂かを確かに見分けるには、MRI か関節鏡が要ります [7]。
+
+ゆるさの評価には、国際膝関節記録委員会（IKDC）の評価表が使われます。すねの骨が前に出る量の左右差が 3mm 未満を A（正常）、3〜5mm を B、6〜10mm を C、10mm を超えると D とします [9]。
 
 ${MAPPING_NOTE}`,
     },
     {
+      id: 'treatment',
+      title: '手術するか、しないか',
+      body: `ACL の怪我の後の治療は、リハビリだけで進めるか、再建術をしてリハビリをするかに分かれます。
+
+若く活動的な成人 121 人の無作為化試験（KANON）では、すぐに再建術をする方法は、まずリハビリを行い必要になったら再建する方法より、2 年後の膝の状態（KOOS）で優れていませんでした。リハビリを先にした方では、再建術を受けた人が実際に少なくなりました [10]。5 年後にも、本人が答える膝の状態や、X 線での変形性関節症の所見に差はありませんでした [11]。
+
+2020 年の国際的な合意（Panther Symposium）は、全員に合う一つの治療は無く、本人と医療者が一緒に決めるべきだとしています。手術しない場合も、組み立てたリハビリが欠かせないとしています [12]。
+
+手術しないで激しい運動に戻れる人（コーパー）かどうかは、ホップテストなどで判断します。ただ、この判断は固定したものではありません。Delaware-Oslo のコホート（271 人）では、最初に戻れないと判断された人の約半数が、神経筋と筋力のトレーニングの後には戻れる側に移りました [13]。
+
+再建術の移植腱（大腿四頭筋腱、膝蓋腱、ハムストリングス腱）による成績は、まとめた分析でおおむね同じで、違いは腱を取った場所の痛みなどに出ます [14]。一方、半月板の縫合を一緒にした場合は、荷重や可動域、ひねる動きを許す時期が遅くなります [15]。`,
+    },
+    {
       id: 'rehab',
       title: '復帰の時期と基準',
-      body: `ノルウェーの ACL 再建術を受けた 106 人の研究（Delaware-Oslo ACL コホート）では、競技への復帰を 1 か月遅らせるごとに、再受傷の率が 51% 下がりました。この効果は術後 9 か月まで見られ、それより後では下がりませんでした [4]。復帰の前に大腿四頭筋の筋力の左右差が小さいことも、再受傷を減らしていました [4]。
+      body: `ACL 再建術を受けて元のプロのレベルに戻った男子選手 158 人の研究では、26 人（16.5%）が復帰後に移植腱を再び切りました。復帰前に筋力やホップテストなど 6 つの基準を全て満たさずにチーム練習へ戻った選手は、満たした選手より再断裂の危険が約 4 倍でした [16]。
+
+ノルウェーの ACL 再建術を受けた 106 人の研究（Delaware-Oslo ACL コホート）では、競技への復帰を 1 か月遅らせるごとに、再受傷の率が 51% 下がりました。この効果は術後 9 か月まで見られ、それより後では下がりませんでした [4]。復帰の前に大腿四頭筋の筋力の左右差が小さいことも、再受傷を減らしていました [4]。
 
 復帰した後の二度目の ACL 損傷も多く、19 の研究をまとめた分析では全体で 15%（同じ側 7%、反対側 8%）でした。25 歳未満では 21%、25 歳未満で競技に戻った人では 23% でした [5]。若く、高いレベルの競技に戻る人ほど注意が要ります [5]。
 
@@ -169,9 +203,20 @@ ${MAPPING_NOTE}`,
     { n: 3, text: 'Petersen W, Zantop T. Anatomy of the anterior cruciate ligament with regard to its two bundles. Clin Orthop Relat Res. 2007;454:35–47.', url: 'https://www.pubmed.gov/17142430/' },
     { n: 4, text: 'Grindem H, et al. Simple decision rules can reduce reinjury risk by 84% after ACL reconstruction: the Delaware-Oslo ACL cohort study. Br J Sports Med. 2016;50(13):804–808.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC4912389' },
     { n: 5, text: 'Wiggins AJ, et al. Risk of secondary injury in younger athletes after anterior cruciate ligament reconstruction: a systematic review and meta-analysis. Am J Sports Med. 2016;44(7):1861–1876.', url: 'https://pubmed.ncbi.nlm.nih.gov/26772611/' },
+    { n: 7, text: 'Musahl V, Karlsson J. Anterior cruciate ligament tear. N Engl J Med. 2019;380(24):2341–2348.', url: 'https://doi.org/10.1056/NEJMcp1805931' },
+    { n: 8, text: 'Noyes FR, et al. Partial tears of the anterior cruciate ligament: progression to complete ligament deficiency. J Bone Joint Surg Br. 1989;71(5):825–833.', url: 'https://doi.org/10.1302/0301-620X.71B5.2584255' },
+    { n: 9, text: 'Hefti F, et al. Evaluation of knee ligament injuries with the IKDC form. Knee Surg Sports Traumatol Arthrosc. 1993;1(3-4):226–234.', url: 'https://doi.org/10.1007/BF01560215' },
+    { n: 10, text: 'Frobell RB, et al. A randomized trial of treatment for acute anterior cruciate ligament tears. N Engl J Med. 2010;363(4):331–342.', url: 'https://doi.org/10.1056/NEJMoa0907797' },
+    { n: 11, text: 'Frobell RB, et al. Treatment for acute anterior cruciate ligament tear: five year outcome of randomised trial. BMJ. 2013;346:f232.', url: 'https://doi.org/10.1136/bmj.f232' },
+    { n: 12, text: 'Diermeier T, et al. Treatment after anterior cruciate ligament injury: Panther Symposium ACL Treatment Consensus Group. Knee Surg Sports Traumatol Arthrosc. 2020;28(8):2390–2402.', url: 'https://doi.org/10.1007/s00167-020-06012-6' },
+    { n: 13, text: 'Thoma LM, et al. Coper classification early after anterior cruciate ligament rupture changes with progressive neuromuscular and strength training and is associated with 2-year success: the Delaware-Oslo ACL Cohort Study. Am J Sports Med. 2019;47(4):807–814.', url: 'https://doi.org/10.1177/0363546519825500' },
+    { n: 14, text: 'Mouarbes D, et al. Anterior cruciate ligament reconstruction: a systematic review and meta-analysis of outcomes for quadriceps tendon autograft versus bone-patellar tendon-bone and hamstring-tendon autografts. Am J Sports Med. 2019;47(14):3531–3540.', url: 'https://doi.org/10.1177/0363546518825340' },
+    { n: 15, text: 'van Melick N, et al. Evidence-based clinical practice update: practice guidelines for anterior cruciate ligament rehabilitation based on a systematic review and multidisciplinary consensus. Br J Sports Med. 2016;50(24):1506–1515.', url: 'https://doi.org/10.1136/bjsports-2015-095898' },
+    { n: 16, text: 'Kyritsis P, Bahr R, Landreau P, Miladi R, Witvrouw E. Likelihood of ACL graft rupture: not meeting six clinical discharge criteria before return to sport is associated with a four times greater risk of rupture. Br J Sports Med. 2016;50(15):946–951.', url: 'https://doi.org/10.1136/bjsports-2015-095908' },
     { n: 6, text: 'Webster KE, Hewett TE. Meta-analysis of meta-analyses of anterior cruciate ligament injury reduction training programs. J Orthop Res. 2018;36(10):2696–2708.', url: 'https://pubmed.ncbi.nlm.nih.gov/29737024/' },
   ],
   keywords: ['前十字', 'ACL', '靱帯', '靭帯', '膝'],
+  quelle: ['research-0044'],
 }
 
 const meniscus: DiseaseGuide = {
@@ -290,13 +335,25 @@ const mcl: DiseaseGuide = {
     {
       id: 'classification',
       title: '分類と重症度',
-      body: `MRI では次の三つの段階に分けられます [3]。
+      body: `MCL の怪我には、見るものの違う分類がいくつかあります。
+
+**AMA の分類**: 膝を 30 度曲げて外側から押したとき、内側の関節の隙間が開く量で分けます。3〜5mm を I 度、6〜10mm を II 度、10mm を超えると III 度とします。徒手の診察だけで決められます [4][5]。
+
+**Fetto と Marshall の分類（1978）**: どの角度で開くかで分けます。I 度は押すと痛いが 0 度でも 30 度でもぐらつかない、II 度は 30 度ではぐらつくが伸ばしきると安定、III 度は両方でぐらつく、です [6]。伸ばしきっても開くのは、MCL 以外の構造も傷ついている印です。この論文では III 度の約 80% に他の靱帯の損傷がありました [6]。UEFA の研究もこの方法で段階を決めています [3]。
+
+**ストレス X 線**: 屍体の膝で調べた研究では、膝を 20 度曲げて押したときの開きが反対側より 3.2mm を超えると浅層 MCL の完全断裂、9.8mm を超えると内側の支持組織全体の損傷を示しました [7]。
+
+**MRI**: 次の三つの段階に分けられます [3]。
 
 - **I 度**: むくみや出血はあるが、線維は切れていない
 - **II 度**: 一部の線維が切れているが、残っている線維もある
 - **III 度**: 完全に切れている、または付着部から剥がれている
 
-UEFA の研究では、MRI の段階と診察での段階はほぼ完全に一致していました [3]。
+UEFA の研究では、MRI の段階と診察での段階はほぼ完全に一致していました [3]。一方で、MRI の所見の現れ方にはばらつきがあり、MRI の段階分けは MCL の損傷の分類として正確でない可能性がある、とする研究もあります [8]。
+
+**場所**: 太ももの骨側の付着部の損傷は治りやすく、すねの骨側の損傷は治りにくく、ゆるさが残りやすいとされます。切れた端が鵞足の腱の上にめくれ返ったもの（Stener 様の病変）は、手術しないと治りません [9]。
+
+MCL だけの損傷は、段階を問わず手術しない治療の成績が良いとされます [4][5]。
 
 ${MAPPING_NOTE}`,
     },
@@ -313,9 +370,16 @@ ${MAPPING_NOTE}`,
   sources: [
     { n: 1, text: 'Lundblad M, et al. The UEFA injury study: 11-year data concerning 346 MCL injuries and time to return to play. Br J Sports Med. 2013;47(12):759–762.', url: 'https://bjsm.bmj.com/content/47/12/759.abstract' },
     { n: 2, text: 'LaPrade RF, et al. The anatomy of the medial part of the knee. J Bone Joint Surg Am. 2007;89(9):2000–2010.', url: 'https://typeset.io/pdf/the-anatomy-of-the-medial-part-of-the-knee-5bs1ku1dew.pdf' },
+    { n: 4, text: 'Chen L, Kim PD, Ahmad CS, Levine WN. Medial collateral ligament injuries of the knee: current treatment concepts. Curr Rev Musculoskelet Med. 2008;1(2):108–113.', url: 'https://doi.org/10.1007/s12178-007-9016-x' },
+    { n: 5, text: 'Encinas-Ullán CA, Rodríguez-Merchán EC. Isolated medial collateral ligament tears: an update on management. EFORT Open Rev. 2018;3(7):398–407.', url: 'https://doi.org/10.1302/2058-5241.3.170035' },
+    { n: 6, text: 'Fetto JF, Marshall JL. Medial collateral ligament injuries of the knee: a rationale for treatment. Clin Orthop Relat Res. 1978;132:206–218.', url: 'https://doi.org/10.1097/00003086-197805000-00038' },
+    { n: 7, text: 'LaPrade RF, et al. Correlation of valgus stress radiographs with medial knee ligament injuries: an in vitro biomechanical study. Am J Sports Med. 2010;38(2):330–338.', url: 'https://doi.org/10.1177/0363546509349347' },
+    { n: 8, text: 'Schweitzer ME, et al. Medial collateral ligament injuries: evaluation of multiple signs, prevalence and location of associated bone bruises, and assessment with MR imaging. Radiology. 1995;194(3):825–829.', url: 'https://doi.org/10.1148/radiology.194.3.7862987' },
+    { n: 9, text: 'Wijdicks CA, et al. Injuries to the medial collateral ligament and associated medial structures of the knee. J Bone Joint Surg Am. 2010;92(5):1266–1280.', url: 'https://doi.org/10.2106/JBJS.I.01229' },
     { n: 3, text: 'Lundblad M, et al. Medial collateral ligament injuries of the knee in male professional football players: a prospective three-season study of 130 cases from the UEFA Elite Club Injury Study. Knee Surg Sports Traumatol Arthrosc. 2019;27(11):3692–3698.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6800843/' },
   ],
   keywords: ['側副靱帯', '側副靭帯', 'MCL', '膝'],
+  quelle: ['research-0042'],
 }
 
 /* 足首の二つ（前距腓靱帯・足関節側副靱帯）で共通の出典 */
@@ -325,21 +389,29 @@ const ANKLE_SOURCES = {
   vanDijk: { text: 'van Dijk CN, et al. Physical examination is sufficient for the diagnosis of sprained ankles. J Bone Joint Surg Br. 1996;78(6):958–962.', url: 'https://pubmed.ncbi.nlm.nih.gov/8951015/' },
   dhooghe: { text: 'D’Hooghe P, Cruz F, Alkhelaifi K. Return to play after a lateral ligament ankle sprain. Curr Rev Musculoskelet Med. 2020;13(3):281–288.', url: 'https://link.springer.com/doi/10.1007/s12178-020-09631-1' },
   vuurberg: { text: 'Vuurberg G, et al. Diagnosis, treatment and prevention of ankle sprains: update of an evidence-based clinical guideline. Br J Sports Med. 2018;52(15):956.', url: 'https://pubmed.ncbi.nlm.nih.gov/29514819/' },
+  lacerda: { text: 'Lacerda D, et al. Current concept review: state of acute lateral ankle injury classification systems. J Foot Ankle Surg. 2023;62(1):197–203.', url: 'https://doi.org/10.1053/j.jfas.2022.08.005' },
+  malli06: { text: 'Malliaropoulos N, Papacostas E, Papalada A, Maffulli N. Acute lateral ankle sprains in track and field athletes: an expanded classification. Foot Ankle Clin. 2006;11(3):497–507.', url: 'https://doi.org/10.1016/j.fcl.2006.05.004' },
+  malli09: { text: 'Malliaropoulos N, et al. Reinjury after acute lateral ankle sprains in elite track and field athletes. Am J Sports Med. 2009;37(9):1755–1761.', url: 'https://doi.org/10.1177/0363546509338107' },
+  vanRijn: { text: 'van Rijn RM, et al. What is the clinical course of acute ankle sprains? A systematic literature review. Am J Med. 2008;121(4):324–331.e6.', url: 'https://doi.org/10.1016/j.amjmed.2007.11.018' },
+  roast: { text: 'Delahunt E, et al. Clinical assessment of acute lateral ankle sprain injuries (ROAST): 2019 consensus statement and recommendations of the International Ankle Consortium. Br J Sports Med. 2018;52(20):1304–1310.', url: 'https://doi.org/10.1136/bjsports-2017-098885' },
+  caiCriteria: { text: 'Gribble PA, et al. Selection criteria for patients with chronic ankle instability in controlled research: a position statement of the International Ankle Consortium. J Athl Train. 2014;49(1):121–127.', url: 'https://doi.org/10.4085/1062-6050-49.1.14' },
   gribble: { text: 'Gribble PA, et al. 2016 consensus statement of the International Ankle Consortium: prevalence, impact and long-term consequences of lateral ankle sprains. Br J Sports Med. 2016.', url: 'https://bjsm.bmj.com/content/early/2016/06/03/bjsports-2016-096189.full.pdf' },
 }
 
-const ANKLE_CARE = (n: { vanDijk: number; vuurberg: number; gribble: number }) => ({
+const ANKLE_CARE = (n: { vanDijk: number; vuurberg: number; gribble: number; vanRijn: number; caiCriteria: number }) => ({
   assessment: `靱帯がどれだけ傷ついているかは、受傷の直後より数日たってからの方が正しく分かります。足首を捻った 160 人の研究では、受傷 5 日後の診察で、靱帯の断裂を見つける感度が 96%、特異度が 84% でした [${n.vanDijk}]。経験の少ない人でも、48 時間以内より 5 日後の診察の方が正確でした [${n.vanDijk}]。`,
   rehab: `2018 年の診療ガイドラインでは、外側の靱帯が切れた急性の捻挫には、ギプスなどで固定するよりテーピングか装具を使うことを勧めています [${n.vuurberg}]。治療は、受け身の物理療法より、指導のもとで行う運動のプログラムを中心にします。手術は、運動を中心にした治療を十分に行っても良くならない場合に限ります [${n.vuurberg}]。痛み止め（NSAIDs）は痛みと腫れを和らげますが、自然な治りを遅らせるおそれがあり、使い方に注意が要ります [${n.vuurberg}]。
 
 清水さんのプロトコルの時期とメニューは、このページの下の「プロトコル」で見られます。`,
-  prevention: `足首の捻挫は再発が多く、捻挫した人の多くが慢性足関節不安定症（足首がぐらつく、何度も捻る状態）に移っていくと、国際足関節コンソーシアムの合意声明は述べています [${n.gribble}]。
+  prevention: `足首の捻挫は再発が多く、捻挫した人の多くが慢性足関節不安定症（足首がぐらつく、何度も捻る状態）に移っていくと、国際足関節コンソーシアムの合意声明は述べています [${n.gribble}]。急性の捻挫の経過をまとめたレビューでは、痛みと腫れは最初の 2 週間で速く良くなる一方、1 年後も 5〜33% が痛みを訴え、3 年後までに 33% が再び捻挫していました [${n.vanRijn}]。
+
+慢性足関節不安定症は、急性の怪我の段階とは別の状態として扱われます。研究の対象者を選ぶ基準では、最初の大きな捻挫から 12 か月以上たっていること、足首が抜ける感じや不安定感・捻挫の繰り返しがあること、質問票で機能の低下が確かめられること、を条件にしています [${n.caiCriteria}]。
 
 再発の予防には、装具が有効な選択肢として挙げられています [${n.vuurberg}]。`,
 })
 
 const atfl: DiseaseGuide = (() => {
-  const care = ANKLE_CARE({ vanDijk: 3, vuurberg: 5, gribble: 6 })
+  const care = ANKLE_CARE({ vanDijk: 3, vuurberg: 5, gribble: 6, vanRijn: 10, caiCriteria: 12 })
   return {
     key: 'atfl_injury',
     status: 'draft',
@@ -364,7 +436,11 @@ const atfl: DiseaseGuide = (() => {
       {
         id: 'classification',
         title: '分類',
-        body: `前距腓靱帯だけの損傷か、他の靱帯や関節も傷ついた複雑な損傷かを分けることが大切だとされています [4]。
+        body: `前距腓靱帯だけの損傷か、他の靱帯や関節も傷ついた複雑な損傷かを分けることが大切だとされています [4]。足首の外側の靱帯は、前距腓靱帯だけ、前距腓靱帯と踵腓靱帯、三本全て、の順に重くなると考えられています。国際足関節コンソーシアムの評価の合意（ROAST）は、受傷のしかたを記録し、一本ずつ靱帯を触って調べる検査をするよう勧めています [11]。前距腓靱帯は前方引き出しテスト、踵腓靱帯は距骨傾斜テストで調べますが、受傷直後は痛みと筋肉の緊張で分かりにくく、数日後の診察が勧められます [5]。
+
+足首の捻挫の分類は 25 通りも使われていて、どれが予後を予測するかを確かめた研究は一つも見つかっていない、とするレビューがあります [7]。
+
+重さと再受傷の関係は単純ではありません。III 度をストレス X 線で二つに分けた四段階の分類 [8] を使い、エリート陸上選手 202 人を 24 か月追った研究では、再受傷は I 度で 14%、II 度で 29%、IIIA 度で 5.6% で、軽い捻挫の方が多くなりました [9]。
 
 ${MAPPING_NOTE}足首の外側の靱帯全体については「足関節側副靭帯損傷」のページも見てください。`,
       },
@@ -378,13 +454,20 @@ ${MAPPING_NOTE}足首の外側の靱帯全体については「足関節側副�
       { n: 4, ...ANKLE_SOURCES.dhooghe },
       { n: 5, ...ANKLE_SOURCES.vuurberg },
       { n: 6, ...ANKLE_SOURCES.gribble },
+      { n: 7, ...ANKLE_SOURCES.lacerda },
+      { n: 8, ...ANKLE_SOURCES.malli06 },
+      { n: 9, ...ANKLE_SOURCES.malli09 },
+      { n: 10, ...ANKLE_SOURCES.vanRijn },
+      { n: 11, ...ANKLE_SOURCES.roast },
+      { n: 12, ...ANKLE_SOURCES.caiCriteria },
     ],
     keywords: ['前距腓', '足関節', '足首', '捻挫', 'ATFL', 'ankle'],
+    quelle: ['research-0041'],
   }
 })()
 
 const ankleLateral: DiseaseGuide = (() => {
-  const care = ANKLE_CARE({ vanDijk: 3, vuurberg: 5, gribble: 6 })
+  const care = ANKLE_CARE({ vanDijk: 3, vuurberg: 5, gribble: 6, vanRijn: 10, caiCriteria: 12 })
   return {
     key: 'ankle_lateral_ligament_injury',
     status: 'draft',
@@ -411,7 +494,15 @@ const ankleLateral: DiseaseGuide = (() => {
       {
         id: 'classification',
         title: '分類',
-        body: `一本の靱帯だけの捻挫か、より複雑な足首の損傷かを見分けることが大切だとされています [4]。
+        body: `足首の捻挫の分類を調べたレビューでは、文献の中で 25 通りの分類が使われていました。多くは三段階で、損傷の解剖、診察所見、機能の低下、不安定性の有無で分けています。ただ、どの分類が治療の方針や予後と合っているかを確かめた研究は一つも見つからず、最も適切な分類は勧められない、と結論しています [7]。
+
+- **慣例の I〜III 度**: 伸びただけ（I 度）、部分断裂（II 度）、完全断裂（III 度）[7]。
+- **West Point の分類**: 診察だけで決めます。I 度は助けなしで体重をかけられる、II 度ははっきり足を引きずる、III 度は体重をかけられない、です。I 度で 7〜14 日、II 度で 2〜6 週、III 度で 4〜26 週の休みが目安とされますが、確かめられた予測値ではありません [7]。
+- **Malliaropoulos の分類**: III 度をストレス X 線で IIIA と IIIB に分けた四段階です [8]。
+
+ギリシャのエリート陸上選手 202 人を同じリハビリで 24 か月追った研究では、36 人（17.8%）が再び捻挫しました。再受傷は I 度で 14%、II 度で 29%、IIIA 度で 5.6% と、軽い捻挫の方が多くなりました [9]。軽いからといって短く済ませてよいとは限らないということです。
+
+一本の靱帯だけの捻挫か、より複雑な足首の損傷かを見分けることが大切だとされています [4]。国際足関節コンソーシアムの評価の合意（ROAST）は、受傷のしかたを記録し、靱帯を一本ずつ調べるよう勧めています [11]。
 
 ${MAPPING_NOTE}このアプリでは「前距腓靭帯損傷」が別の項目になっています。二つの使い分けは清水さんのプロトコルの区分です。`,
       },
@@ -425,8 +516,15 @@ ${MAPPING_NOTE}このアプリでは「前距腓靭帯損傷」が別の項目�
       { n: 4, ...ANKLE_SOURCES.dhooghe },
       { n: 5, ...ANKLE_SOURCES.vuurberg },
       { n: 6, ...ANKLE_SOURCES.gribble },
+      { n: 7, ...ANKLE_SOURCES.lacerda },
+      { n: 8, ...ANKLE_SOURCES.malli06 },
+      { n: 9, ...ANKLE_SOURCES.malli09 },
+      { n: 10, ...ANKLE_SOURCES.vanRijn },
+      { n: 11, ...ANKLE_SOURCES.roast },
+      { n: 12, ...ANKLE_SOURCES.caiCriteria },
     ],
     keywords: ['足関節', '足首', '捻挫', '側副靱帯', '側副靭帯', 'ankle'],
+    quelle: ['research-0041'],
   }
 })()
 

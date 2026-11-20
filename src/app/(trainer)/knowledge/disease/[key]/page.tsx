@@ -92,12 +92,12 @@ export default async function DiseasePage({ params, searchParams }: { params: Pr
 
         <h2 className="mb-3 mt-10 text-xl font-bold text-white">出典</h2>
         <ol className="space-y-2">
-          {guide.sources.map((src) => <li key={src.n} id={`src-${src.n}`} className="flex gap-2 text-2xs leading-relaxed text-navy-300">
+          {[...guide.sources].sort((x, y) => x.n - y.n).map((src) => <li key={src.n} id={`src-${src.n}`} className="flex gap-2 text-2xs leading-relaxed text-navy-300">
             <span className="w-6 shrink-0 text-navy-500">[{src.n}]</span>
             <a href={src.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 hover:text-white">{src.text}</a>
           </li>)}
         </ol>
-        <p className="mt-4 text-2xs text-navy-500">更新 {guide.updatedOn}{guide.status === 'draft' ? '・清水さんの監修前' : ''}</p>
+        <p className="mt-4 text-2xs text-navy-500">更新 {guide.updatedOn}{guide.quelle?.length ? `・Quelle ${guide.quelle.join('・')} を材料に含む` : ''}{guide.status === 'draft' ? '・清水さんの監修前' : ''}</p>
       </>}
     </div>
   </main>

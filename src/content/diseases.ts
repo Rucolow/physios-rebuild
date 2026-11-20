@@ -22,6 +22,8 @@ export interface DiseaseGuide {
   sources: DiseaseSource[]
   /** BRÜCKE・自分の記事から関連記事を探す語 */
   keywords: string[]
+  /** 材料に使った Quelle のリサーチ番号 */
+  quelle?: string[]
 }
 
 const hamstring: DiseaseGuide = {
@@ -58,11 +60,17 @@ UEFA のエリートクラブ傷害研究では、2001/02 から 2021/22 まで�
     {
       id: 'classification',
       title: '分類と重症度',
-      body: `筋肉の怪我の分類には、主に次の二つが使われています。
+      body: `ハムストリングスの肉離れには、いくつもの分類があります。どれを使うかで、必要な検査も、言えることも変わります。
 
-**ミュンヘン・コンセンサス（2013）** [5]: 筋線維の目に見える断裂が無い「機能的な障害」（1 型: 使いすぎ、2 型: 神経筋性）と、断裂がある「構造的な損傷」（3 型: 部分断裂、4 型: 完全断裂・腱の剥離）に分けます。
+**昔からの I〜III 度**: 軽度（少しの線維の損傷）、中等度（部分断裂）、重度（完全断裂）の三段階。痛みや筋力低下などの診察で決め、画像は要りません。ただ、新しい分類を提案した論文は、この三段階が損傷の実体を正しく表しておらず、復帰までの期間を確かに予測できるとは示されていない、と指摘しています [12]。
 
-**British Athletics Muscle Injury Classification（BAMIC, 2014）** [6]: MRI の所見から 0〜4 の段階に分け、さらに損傷の場所を a（筋膜）、b（筋腱移行部）、c（腱の中）で表します。陸上のエリート選手の研究では、3 の段階と c（腱に及ぶ損傷）で、練習への完全復帰までが長くかかりました [7]。
+**ミュンヘン・コンセンサス（2013）** [5]: 筋線維の目に見える断裂が無い「機能的な障害」と、断裂がある「構造的な損傷」に分けます。機能的な障害は、疲労による 1A、遅発性筋痛の 1B、脊柱由来の 2A、筋肉由来の 2B。構造的な損傷は、軽い部分断裂の 3A、中等度の部分断裂の 3B、（ほぼ）完全な断裂・腱の剥離の 4 です。見分けるには MRI か超音波が要ります [5]。欧州のプロサッカー 31 チームで 1 シーズンに起きた太ももの筋肉の怪我 393 件にこの分類を当てた研究では、3 分の 2 が構造的な損傷で、機能的な障害より離脱が長く、構造的な損傷の中でも重いほど離脱が長くなりました。機能的な障害の離脱は中央値 5〜8 日でした [11]。
+
+**British Athletics Muscle Injury Classification（BAMIC, 2014）** [6]: MRI で損傷の大きさを 0〜4 に分け（0 は構造的な損傷なし、4 は完全断裂）、場所を a（筋膜）、b（筋腱移行部）、c（腱の中）で表します。陸上のエリート選手の研究では、c（腱に及ぶ損傷）で練習への完全復帰までが長く、再発も多くなりました [7]。数字の大きさより、腱に及ぶかどうかが見通しを分けるというのがこの分類の主張です。
+
+**MLG-R（2017）** [13]: 受傷のしかた（M: 直接の打撲か、伸ばされて起きたか、スプリントで起きたか）、場所（L）、重さ（G）、再受傷の回数（R）の四つの軸で表す分類です。復帰までの期間を予測することを目的に作られています [13]。
+
+**坐骨結節からの腱の剥離**: 筋肉の中の肉離れとは別の怪我として扱われ、治療の進め方も別です。24 の研究・795 例をまとめた分析では、手術で修復した方が手術しないより成績が良く、受傷してすぐの修復の方が時間がたってからの修復より良好でした。合併症は 23% にありました [14]。
 
 このアプリの「軽度・中程度・重度」は清水さんのプロトコルの区分です。上の分類との対応は、ここでは決めていません。`,
     },
@@ -72,6 +80,17 @@ UEFA のエリートクラブ傷害研究では、2001/02 から 2021/22 まで�
       body: `復帰の判断に使われている基準は、研究によってばらばらで、主観的なものが多いと報告されています。よく使われているのは、痛みが無いこと、臨床での評価、動きのテストです [8]。
 
 その中で、Askling H-test（素早く脚を挙げるテスト）を復帰の基準に入れた研究では再発が少なかった一方、復帰までの日数は延びる傾向がありました [8]。`,
+    },
+    {
+      id: 'rtp',
+      title: '復帰の判断',
+      body: `復帰は「受傷から何週たったか」ではなく、決めておいた基準を満たしたかで判断する、というのが今の考え方です。ハムストリングスの復帰の基準を扱った 25 の研究をまとめたレビューでは、痛みが無いこと、可動域、筋力、動きのテストが繰り返し使われていましたが、どこまでできればよいかの値は研究ごとにばらばらでした [15]。
+
+ただ、週数が要らなくなるわけではありません。筋肉の修復は、壊れた組織の片付け、修復、作り直しという時間のかかる過程をたどります [16]。テストの値は傷んだ場所の強さを直接測っていないので、組織が治るより先に基準を満たしてしまうことがあります。
+
+「復帰」の中身も一つではありません。2016 年のベルンの合意声明は、制限付きで練習に参加する段階、競技に制限なく戻る段階、受傷前のパフォーマンスに戻る段階の三つを続きとして考えるよう勧めています [17]。サッカーのハムストリングスについての世界規模の Delphi 調査では、「復帰」はチーム練習に完全に参加でき、試合のメンバー選考の対象になる状態と定義されました [18]。
+
+復帰の判断は「安全かどうか」の二択ではなく、組織の状態とどこまでの危険を受け入れるか（シーズンの時期、選手の立場など）を突き合わせる作業だ、とする考え方もあります [19]。`,
     },
     {
       id: 'rehab',
@@ -103,8 +122,18 @@ UEFA のエリートクラブ傷害研究では、2001/02 から 2021/22 まで�
     { n: 8, text: 'Hickey JT, et al. Criteria for progressing rehabilitation and determining return-to-play clearance following hamstring strain injury: a systematic review. Sports Med. 2017.', url: 'https://mural.maynoothuniversity.ie/id/eprint/19701/' },
     { n: 9, text: 'van der Horst N, et al. The preventive effect of the Nordic hamstring exercise on hamstring injuries in amateur soccer players: a randomized controlled trial. Am J Sports Med. 2015.', url: 'https://pubmed.ncbi.nlm.nih.gov/25794868/' },
     { n: 10, text: 'van Dyk N, Behan FP, Whiteley R. Including the Nordic hamstring exercise in injury prevention programmes halves the rate of hamstring injuries: a systematic review and meta-analysis of 8459 athletes. Br J Sports Med. 2019;53:1362–1370.', url: 'https://bjsm.bmj.com/content/53/21/1362.info' },
+    { n: 11, text: 'Ekstrand J, Askling C, Magnusson H, Mithoefer K. Return to play after thigh muscle injury in elite football players: implementation and validation of the Munich muscle injury classification. Br J Sports Med. 2013;47(12):769–774.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3717808' },
+    { n: 12, text: 'Chan O, Del Buono A, Best TM, Maffulli N. Acute muscle strain injuries: a proposed new classification system. Knee Surg Sports Traumatol Arthrosc. 2012;20(11):2356–2362.', url: 'https://doi.org/10.1007/s00167-012-2118-z' },
+    { n: 13, text: 'Valle X, et al. Muscle injuries in sports: a new evidence-informed and expert consensus-based classification with clinical application. Sports Med. 2017;47(7):1241–1253.', url: 'https://doi.org/10.1007/s40279-016-0647-1' },
+    { n: 14, text: 'Bodendorfer BM, et al. Outcomes after operative and nonoperative treatment of proximal hamstring avulsions: a systematic review and meta-analysis. Am J Sports Med. 2018;46(11):2798–2808.', url: 'https://doi.org/10.1177/0363546517732526' },
+    { n: 15, text: 'van der Horst N, et al. Return to play after hamstring injuries: a qualitative systematic review of definitions and criteria. Sports Med. 2016;46(6):899–912.', url: 'https://doi.org/10.1007/s40279-015-0468-7' },
+    { n: 16, text: 'Järvinen TAH, et al. Muscle injuries: biology and treatment. Am J Sports Med. 2005;33(5):745–764.', url: 'https://doi.org/10.1177/0363546505274714' },
+    { n: 17, text: 'Ardern CL, et al. 2016 Consensus statement on return to sport from the First World Congress in Sports Physical Therapy, Bern. Br J Sports Med. 2016;50(14):853–864.', url: 'https://doi.org/10.1136/bjsports-2016-096278' },
+    { n: 18, text: 'van der Horst N, et al. Return to play after hamstring injuries in football (soccer): a worldwide Delphi procedure regarding definition, medical criteria and decision-making. Br J Sports Med. 2017;51(22):1583–1591.', url: 'https://doi.org/10.1136/bjsports-2016-097206' },
+    { n: 19, text: 'Shrier I. Strategic Assessment of Risk and Risk Tolerance (StARRT) framework for return-to-play decision-making. Br J Sports Med. 2015;49(20):1311–1315.', url: 'https://doi.org/10.1136/bjsports-2014-094569' },
   ],
   keywords: ['ハムストリングス', 'ハムストリング', '肉離れ', 'ノルディック', 'hamstring'],
+  quelle: ['research-0040'],
 }
 
 export const DISEASE_GUIDES: Record<string, DiseaseGuide> = Object.fromEntries(
