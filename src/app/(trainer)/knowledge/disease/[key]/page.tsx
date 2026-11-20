@@ -2,6 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { requireTrainer } from '@/lib/auth'
+import { adminDb } from '@/lib/supabase/server'
+import { DISEASE_GUIDES } from '@/content/diseases'
+import { ArticleBody } from '@/components/knowledge/ArticleBody'
 import { healingText, loadDisease, protocolSheet, protocolTeamSteps } from '@/lib/knowledge'
 import { ProtocolView } from '@/components/knowledge/ProtocolView'
 import { Num } from '@/components/ui/Num'
@@ -11,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 /** 疾患のページ。程度・術式ごとのプロトコルを、開いたものだけ中身を出す */
 export default async function DiseasePage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ v?: string; s?: string }> }) {
-  await requireTrainer()
+  const trainer = await requireTrainer()
   const [{ key }, { v, s }] = await Promise.all([params, searchParams])
   const disease = await loadDisease(key)
   if (!disease) notFound()
@@ -19,14 +22,32 @@ export default async function DiseasePage({ params, searchParams }: { params: Pr
   const section = s === 'team' ? 'team' : 'menu'
   const [rows, steps] = open ? await Promise.all([protocolSheet(open.id), protocolTeamSteps(open.id)]) : [[], []]
   const base = `/knowledge/disease/${key}`
+  const guide = DISEASE_GUIDES[key] ?? null
+  const related = guide ? await relatedArticles(trainer.id, guide.keywords) : []
 
   return <main className="px-4 py-6 md:px-6 md:py-8">
     <div className="mx-auto max-w-detail">
       <Link href="/knowledge" className="mb-4 inline-flex items-center gap-1 text-sm text-navy-400 hover:text-white">
         <ChevronLeft size={16} aria-hidden="true" />ナレッジ
       </Link>
-      <h1 className="text-3xl font-bold text-white">{disease.name}</h1>
-      <div className="mt-6 space-y-3">
+      <div className="flex flex-wrap items-baseline gap-3">
+        <h1 className="text-3xl font-bold text-white">{disease.name}</h1>
+        {guide?.status === 'draft' && <span className="text-2xs font-bold text-amber-400">監修前</span>}
+      </div>
+      {guide && <p className="mt-3 text-base leading-relaxed text-navy-200">{guide.lead}</p>}
+
+      {guide && <div className="mt-8 space-y-3">
+        {guide.sections.map((sec, i) => <details key={sec.id} open={i === 0} className="group overflow-hidden rounded-card border border-layer-10">
+          <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-4 hover:bg-layer-5">
+            <span className="min-w-0 flex-1 text-lg font-bold text-white">{sec.title}</span>
+            <ChevronDown size={18} aria-hidden="true" className="shrink-0 text-navy-400 transition-transform duration-fast group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-layer-5 px-4 pb-4"><ArticleBody markdown={sec.body} /></div>
+        </details>)}
+      </div>}
+
+      <h2 className="mb-3 mt-10 text-xl font-bold text-white">プロトコル</h2>
+      <div className="space-y-3">
         {disease.variants.map((p) => {
           const isOpen = open?.id === p.id
           const heal = healingText(p)
@@ -57,6 +78,36 @@ export default async function DiseasePage({ params, searchParams }: { params: Pr
           </section>
         })}
       </div>
+
+      {guide && <>
+        <h2 className="mb-3 mt-10 text-xl font-bold text-white">関連記事</h2>
+        {related.length === 0
+          ? <p className="text-sm text-navy-400">この疾患を扱った記事は、BRÜCKE にまだありません。</p>
+          : <div className="overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
+              {related.map((a) => <Link key={a.id} href={`/knowledge/article/${a.id}`} className="block px-4 py-3 hover:bg-layer-5">
+                <span className="block text-sm font-bold text-white">{a.title}</span>
+                {a.summary && <span className="mt-0.5 block text-2xs text-navy-400">{a.summary}</span>}
+              </Link>)}
+            </div>}
+
+        <h2 className="mb-3 mt-10 text-xl font-bold text-white">出典</h2>
+        <ol className="space-y-2">
+          {guide.sources.map((src) => <li key={src.n} id={`src-${src.n}`} className="flex gap-2 text-2xs leading-relaxed text-navy-300">
+            <span className="w-6 shrink-0 text-navy-500">[{src.n}]</span>
+            <a href={src.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 hover:text-white">{src.text}</a>
+          </li>)}
+        </ol>
+        <p className="mt-4 text-2xs text-navy-500">更新 {guide.updatedOn}{guide.status === 'draft' ? '・清水さんの監修前' : ''}</p>
+      </>}
     </div>
   </main>
+}
+
+/** 疾患の語を題・要約・札に含む記事（BRÜCKE と自分の記事） */
+async function relatedArticles(trainerId: string, keywords: string[]) {
+  const { data } = await adminDb()
+    .from('knowledge_article')
+    .select('id, title, summary, tags')
+    .or(`owner_trainer_id.eq.${trainerId},source.eq.brucke`)
+  return (data ?? []).filter((a) => keywords.some((k) => [a.title, a.summary ?? '', ...(a.tags ?? [])].join(' ').toLowerCase().includes(k.toLowerCase())))
 }
