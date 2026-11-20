@@ -78,7 +78,7 @@ export function DayMenu({ items, onToggle, checkable = false }: { items: PlayerD
       busy={pending}
       busyLabel={open?.done ? '戻しています…' : '記録しています…'}
       title={open?.name ?? ''}
-      footer={open && onToggle ? <Button
+      footer={open && onToggle && !checkable ? <Button
         variant="secondary"
         disabled={pending}
         onClick={async () => {
