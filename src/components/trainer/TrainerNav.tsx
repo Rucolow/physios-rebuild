@@ -1,39 +1,71 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Moon, Sun, Users } from 'lucide-react'
-import { cn } from '@/lib/cn'
+import { Loader2, Mic } from 'lucide-react'
+import { MobileNav, mobileNavItem } from '@/components/ui'
+import { Num } from '@/components/ui/Num'
+import { cn } from '@/lib/utils'
+import { NAV_LEFT, NAV_RIGHT, type TrainerNavEntry } from './nav'
+import { useRecorder } from './RecorderProvider'
 
-const ITEMS = [
-  { href: '/brief', label: '朝', Icon: Sun },
-  { href: '/digest', label: '夜', Icon: Moon },
-  { href: '/players', label: '選手', Icon: Users },
-]
+function Item({ entry, active }: { entry: TrainerNavEntry; active: boolean }) {
+  const Icon = entry.icon
+  return (
+    <Link href={entry.href} aria-current={active ? 'page' : undefined} className={cn(mobileNavItem({ active }))}>
+      <Icon size={20} strokeWidth={2} aria-hidden="true" />
+      <span className="text-2xs font-medium">{entry.label}</span>
+    </Link>
+  )
+}
+
+/** 長押ししている間だけ録音する中央のボタン */
+function HoldButton() {
+  const { state, sec, level, press, release } = useRecorder()
+  const active = state === 'recording' || state === 'starting'
+  return (
+    <div className="relative flex flex-1 justify-center">
+      {state === 'recording' && (
+        <div className="pointer-events-none absolute bottom-full mb-14 flex items-center gap-2 rounded-pill border border-layer-10 glass px-3 py-2">
+          <Num mono className="text-sm font-bold text-white">
+            {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, '0')}
+          </Num>
+          <span className="h-2 w-16 overflow-hidden rounded-pill bg-navy-900">
+            <span className="block h-full bg-red-400" style={{ width: `${Math.round(level * 100)}%` }} />
+          </span>
+        </div>
+      )}
+      <button
+        type="button"
+        aria-label={state === 'processing' ? '文字起こし中' : '押している間だけ録音'}
+        aria-busy={state === 'processing'}
+        disabled={state === 'processing'}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+          press()
+        }}
+        onPointerUp={release}
+        onPointerCancel={release}
+        onContextMenu={(e) => e.preventDefault()}
+        className={cn(
+          'no-callout -mt-6 inline-flex h-16 w-16 touch-none select-none items-center justify-center rounded-pill transition-colors duration-base ease-out',
+          active ? 'bg-red-500 text-navy-900 animate-glow-pulse-danger' : 'bg-gold-500 text-navy-900 shadow-glow',
+          state === 'processing' && 'cursor-not-allowed bg-layer-10 text-navy-300 shadow-none',
+        )}
+      >
+        {state === 'processing' ? <Loader2 size={24} className="animate-spin" aria-hidden="true" /> : <Mic size={26} aria-hidden="true" />}
+      </button>
+    </div>
+  )
+}
 
 export function TrainerNav() {
   const path = usePathname()
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-nav border-t border-layer-5 glass pb-safe">
-      <ul className="mx-auto flex h-nav max-w-read">
-        {ITEMS.map(({ href, label, Icon }) => {
-          const here = path.startsWith(href)
-          return (
-            <li key={href} className="flex-1">
-              <Link
-                href={href}
-                aria-current={here ? 'page' : undefined}
-                className={cn(
-                  'flex h-full flex-col items-center justify-center gap-1 text-2xs font-medium transition-colors duration-fast',
-                  here ? 'text-gold-400' : 'text-navy-400 hover:text-white',
-                )}
-              >
-                <Icon size={20} aria-hidden="true" />
-                {label}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </nav>
+    <MobileNav className="fixed inset-x-0 bottom-0 z-nav">
+      {NAV_LEFT.map((e) => <Item key={e.href} entry={e} active={path.startsWith(e.href)} />)}
+      <HoldButton />
+      {NAV_RIGHT.map((e) => <Item key={e.href} entry={e} active={path.startsWith(e.href)} />)}
+    </MobileNav>
   )
 }

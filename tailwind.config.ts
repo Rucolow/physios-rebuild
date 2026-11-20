@@ -146,12 +146,10 @@ const config: Config = {
       spacing: {
         header: '3.5rem',
         'header-lg': '4rem',
-        nav: '4rem',
+        nav: '4rem', actionbar: '4.5rem',
         rail: '5.75rem',        // 92px ナビレール（§4-6）
         section: '3.25rem',     // 52px 節間（§3-1 縦の律動）
         'col-state': '5.25rem', // 84px 状態語の列幅（§4-7）
-        pane: '25rem',          // 400px split の一覧ペイン固定幅（§3-12）
-        'pane-sm': '19.5rem',   // 312px split のフィルタ用の狭い一覧ペイン（§3-12・J26-1）
       },
 
       backgroundImage: {
@@ -179,12 +177,19 @@ const config: Config = {
       },
 
       minHeight: {
-        pane: 'calc(100vh - var(--header-h))', // 版面の高さ（§3-12・裁定 J175）
+        // 版面（ヘッダーを除いた可視面）の高さ。区切り罫と一覧ペインをここまで引く
+        // （§3-12・裁定 J175）。任意値 `min-h-[calc(...)]` で書くことを禁止する
+        pane: 'calc(100vh - var(--header-h))',
       },
 
       width: {
         modal: 'calc(100% - 2rem)',
-        pane: '25rem', // 400px。split の一覧ペイン固定幅（§3-12）
+        pane: '25rem', // 400px split の一覧ペイン固定幅（§3-12）
+        'pane-sm': '19.5rem', // 312px 検索・分類・フィルタのみの狭い一覧ペイン（§3-12・J24-1）
+      },
+
+      aspectRatio: {
+        thumb: '16 / 10', // 記事カードのサムネ（§4-18）
       },
 
       gridTemplateColumns: {

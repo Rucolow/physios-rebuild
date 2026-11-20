@@ -104,30 +104,37 @@ export async function confirmDigest(trainer: Trainer, answers: Record<string, Dr
     }
     if (d.kind === 'schedule') {
       if (!seg.kickoff_at) throw new ConfirmError('新しい試合の日時が読めませんでした')
-      const { data: team } = playerId ? await db.from('player').select('team').eq('id', playerId).single() : { data: null }
-      // 「日程が変わった」話なので、いま一番近い試合を新しい日時で置き換える
+      // 選手が分かればその選手のチーム、分からなければトレーナーの全チームから、いま一番近い試合を新しい日時で置き換える
+      const { data: player } = playerId ? await db.from('player').select('team_id').eq('id', playerId).single() : { data: null }
+      const { data: teams } = await db.from('team').select('id').eq('trainer_id', trainer.id)
+      const teamIds = player?.team_id ? [player.team_id] : (teams ?? []).map((t) => t.id)
+      if (teamIds.length === 0) throw new ConfirmError('チームがまだありません。チームの画面で先にチームを作ってください')
       const { data: prev } = await db
-        .from('match_schedule')
-        .select('id, team, opponent')
-        .eq('trainer_id', trainer.id)
+        .from('team_event')
+        .select('id, team_id, opponent, venue, home_away')
+        .in('team_id', teamIds)
+        .eq('kind', 'match')
         .is('replaced_by', null)
-        .gte('kickoff_at', now)
-        .order('kickoff_at')
+        .gte('starts_at', now)
+        .order('starts_at')
         .limit(1)
         .maybeSingle()
       const { data: next, error: e4 } = await db
-        .from('match_schedule')
+        .from('team_event')
         .insert({
-          trainer_id: trainer.id,
-          team: team?.team ?? prev?.team ?? null,
+          team_id: prev?.team_id ?? teamIds[0],
+          kind: 'match',
           opponent: prev?.opponent ?? null,
-          kickoff_at: seg.kickoff_at,
+          venue: prev?.venue ?? null,
+          home_away: prev?.home_away ?? null,
+          starts_at: seg.kickoff_at,
           note: seg.schedule_note,
+          source: 'voice',
         })
         .select('id')
         .single()
       if (e4) throw e4
-      if (prev) await db.from('match_schedule').update({ replaced_by: next.id }).eq('id', prev.id)
+      if (prev) await db.from('team_event').update({ replaced_by: next.id }).eq('id', prev.id)
     }
     await db.from('draft').update({ status: 'confirmed', answer: a, player_id: playerId, resolved_at: now }).eq('id', d.id)
   }

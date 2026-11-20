@@ -1,4 +1,7 @@
 /* src/app/globals.css */
+/* 旧アプリ準拠ページの視覚トークン（人間決定 2026-09-16・DESIGN_SYSTEM.md「旧アプリ準拠ページ」）。
+   @import は CSS 仕様上いちばん先に置く。素のクラスセレクタなので preflight より強い */
+@import "../styles/old-app.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,9 +12,11 @@
 :root {
   --header-h: 3.5rem;
   --header-h-lg: 4rem;
-  --fab-h: 4.75rem;
   --nav-h: 4rem;
+  --actionbar-h: 4.5rem;
   --rail-w: 5.75rem;
+  /* 録音 FAB の実寸（h-14 の円 + ラベル行）。本文の下端余白がこれを含む（§5-1・裁定 J176） */
+  --fab-h: 4.75rem;
 
   --glass-bg: rgb(16 26 53 / 0.75);
   --glass-blur: 12px;
@@ -49,7 +54,8 @@
   }
 
   /* 表のセルは器（overflow-x-auto・§5-21）が版面を守る。`anywhere` はここでは
-     min-content を潰して列幅配分を壊すだけなので外す（§2-2・裁定 J235） */
+     min-content を潰して列幅配分を壊すだけなので外す（§2-2・裁定 J235）。
+     `line-break: strict` は禁則の品質なのでセルでも残す */
   :lang(ja) th,
   :lang(ja) td {
     overflow-wrap: normal;
@@ -135,18 +141,13 @@
   .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
   /* 下部ナビの回避余白（モバイルのみ） */
   .pb-nav { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 1rem); }
-  @media (min-width: 768px) {
-    .pb-nav { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem + var(--fab-h) + 1rem); }
-  }
-
-  /* 録音ボタンの位置（DESIGN_SYSTEM §5-1） */
+  /* 浮動ボタンの下端。モバイルは下部ナビ＋セーフエリアを避ける（.pb-nav と同じ式） */
   .bottom-fab { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 1rem); }
-  @media (min-width: 768px) {
-    .bottom-fab { bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
-  }
-
-  /* 下部ナビの直上（ダイジェストの確定バー） */
-  .bottom-above-nav { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
+  /* 画面下固定バーの下端。モバイルは下部ナビの直上に載せる */
+  .bottom-actionbar { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
+  /* 長押しの録音ボタン: iOS の長押しメニューと文字選択を出さない */
+  .no-callout { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  /* 作り直し版は全ての幅で下部ナビ（中央に録音）を使う。≥md の録音 FAB とレールは持たない */
 
   .scrollbar-hide {
     -ms-overflow-style: none;
