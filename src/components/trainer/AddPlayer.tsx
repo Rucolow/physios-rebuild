@@ -23,9 +23,9 @@ export function AddPlayer({ defaultTeam }: { defaultTeam: string }) {
 
   if (!open)
     return (
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="primary" onClick={() => setOpen(true)}>
         <Plus size={16} aria-hidden="true" />
-        選手を足す
+        選手を追加
       </Button>
     )
 

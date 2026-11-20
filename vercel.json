@@ -1,0 +1,3 @@
+{
+  "crons": [{ "path": "/api/cron/brucke", "schedule": "0 18 * * *" }]
+}

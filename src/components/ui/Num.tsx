@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react'
-import { cn } from '@/lib/cn'
+import type { HTMLAttributes } from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '@/lib/utils'
 
-/** 数値は全て等幅数字（P4） */
-export function Num({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn('nums', className)}>{children}</span>
+const num = cva('tabular-nums', { variants: { mono: { true: 'font-mono', false: '' } }, defaultVariants: { mono: false } })
+export type NumProps = HTMLAttributes<HTMLSpanElement> & VariantProps<typeof num>
+export function Num({ mono, className, ...props }: NumProps) {
+  return <span className={cn(num({ mono }), className)} {...props} />
 }

@@ -1,0 +1,2189 @@
+/* @old-app-fidelity */
+/* ============================================================
+ * 旧アプリ準拠ページの視覚トークン（人間決定 2026-09-16
+ * 「ナレッジと選手詳細は見た目も旧アプリが完全に正解」）
+ *
+ * ここは **DESIGN_SYSTEM.md の語彙ではなく、旧アプリ（RYO app）の計測値**を置く場所である。
+ * 値はすべて `docs/design-verify/old-app/verify/ref-old-*.json`（2026-09-16 18:10 凍結）と
+ * 追加計測から写した。目分量で決めた値は 1 つも無い。
+ *
+ * **対象は `docs/DESIGN_SYSTEM.md`「旧アプリ準拠ページ」節のルートだけ**であり、
+ * この範囲の外でこのファイルのクラスを使ってはならない。使う側のファイルは
+ * 先頭行に `// @old-app-fidelity` を置く（`scripts/check-design-system.sh` の
+ * 視覚検査から外れる印であり、diff を読む人にその 1 行が見える）。
+ *
+ * 1 か所に定義するのは、ナレッジ（K1・K2）／選手詳細（P1〜P4）／プロトコル詳細（R）の
+ * 各 PR が**同じ面・同じ角丸・同じピル**を別々に書き起こすのを防ぐためである。
+ * 旧アプリのコードはコピーせず、計測値だけを写している。
+ * ============================================================ */
+
+:root {
+  /* 面（旧アプリはカード・入力欄・ピルのすべてがこの 1 枚の面） */
+  --oa-surface: rgba(255, 255, 255, 0.05);
+  --oa-surface-hover: rgba(255, 255, 255, 0.1);
+  --oa-border: rgba(255, 255, 255, 0.1);
+  --oa-page-bg: #101a35;
+
+  /* 角丸。旧アプリの Tailwind は既定値を上書きしていた（計測値をそのまま置く） */
+  --oa-radius-xs: 4px; /* rounded    カード内の小チップ */
+  --oa-radius-sm: 10px; /* rounded-md タグ */
+  --oa-radius-md: 12px; /* rounded-lg 部位ピル・アイコンボタン・ボタン */
+  --oa-radius-lg: 16px; /* rounded-2xl カード・入力欄 */
+  --oa-radius-full: 9999px; /* rounded-full 分類ピル */
+
+  /* 文字色（trainer-primary-* / accent-* の計測値） */
+  --oa-text: rgb(255, 255, 255);
+  --oa-text-50: rgb(242, 244, 249);
+  --oa-text-100: rgb(222, 228, 241); /* 参考文献の著者行（計測 `div#17`） */
+  --oa-text-200: rgb(189, 199, 221);
+  --oa-text-300: rgb(157, 168, 195);
+  --oa-text-400: rgb(126, 137, 166);
+  --oa-text-500: rgb(98, 109, 140);
+
+  /* ゴールド（旧 trainer-accent） */
+  --oa-accent-500: rgb(242, 193, 78);
+  --oa-accent-400: rgb(244, 204, 99);
+  --oa-accent-300: rgb(247, 214, 121);
+  --oa-accent-900: rgb(8, 14, 31);
+
+  /* 部位ピルの選択色（旧は青。§1-5 のゴールドを使わないという規則と偶然一致する） */
+  --oa-select-bg: rgba(59, 130, 246, 0.3);
+  --oa-select-fg: rgb(147, 197, 253);
+  --oa-select-border: rgba(96, 165, 250, 0.5);
+
+  /* 部位バッジ（カード 3 つめのチップ） */
+  --oa-region-bg: rgba(168, 85, 247, 0.1);
+  --oa-region-fg: rgb(216, 180, 254);
+
+  --oa-transition: 0.15s;
+}
+
+/* ------------------------------------------------------------
+ * 版面
+ * ---------------------------------------------------------- */
+
+/* main 直下の包み。旧は `min-h-screen bg-[#101A35] p-6 pb-24` */
+.oa-page {
+  min-height: 100vh;
+  background-color: var(--oa-page-bg);
+  /* 旧は `text-white`。ここが面全体の既定色であり、沈めた色は各要素が上書きする */
+  color: var(--oa-text);
+  padding: 24px 24px 96px;
+  position: relative;
+}
+
+/* 内容幅。旧 `max-w-5xl mx-auto space-y-6` = 1024px */
+.oa-wrap {
+  max-width: 1024px;
+  margin-inline: auto;
+}
+.oa-wrap > * + * {
+  margin-top: 24px;
+}
+
+/* ------------------------------------------------------------
+ * 面（カード）
+ * ---------------------------------------------------------- */
+.oa-card {
+  padding: 24px;
+  border-radius: var(--oa-radius-lg);
+  background-color: var(--oa-surface);
+  border: 1px solid var(--oa-border);
+  position: relative;
+  transition: background-color var(--oa-transition), border-color var(--oa-transition), color var(--oa-transition);
+}
+:root {
+  /* **hover の値は計測していない**（§16.1 で hover は検証の対象外）。
+     旧アプリのクラス名（`hover:bg-white/10` `hover:border-trainer-accent-500/50`
+     `hover:text-trainer-accent-400`）から読んだ値であって、計算済みスタイルの実測ではない。
+     ここだけは「計測から写した」と言い切れない——hover を検証の対象にするなら撮り直すこと */
+  --oa-hover-unmeasured: 1;
+}
+
+.oa-card:hover {
+  background-color: var(--oa-surface-hover);
+  border-color: rgba(242, 193, 78, 0.5);
+}
+
+/* ------------------------------------------------------------
+ * ピル（分類フィルタ・1 行の横並び）
+ * ---------------------------------------------------------- */
+.oa-pillrow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.oa-pill {
+  padding: 8px 16px;
+  border-radius: var(--oa-radius-full);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  background-color: var(--oa-surface);
+  border: 1px solid var(--oa-border);
+  color: var(--oa-text-300);
+  transition: background-color var(--oa-transition), border-color var(--oa-transition), color var(--oa-transition);
+  display: inline-flex;
+  align-items: center;
+  /* 旧は `gap-1.5`（6px）＋ `svg w-4 h-4`。アイコン付きピル（ブックマーク・適用中）の
+     幅がここで決まる——8px だと参照より 3px 広くなる（審査 1 回目 A1） */
+  gap: 6px;
+}
+.oa-pill:hover {
+  background-color: var(--oa-surface-hover);
+}
+.oa-pill[data-active='true'] {
+  background-color: var(--oa-accent-500);
+  color: var(--oa-accent-900);
+  /* 旧の選択中ピルは**枠を持たない**（計測: border 0px・幅が非選択より 2px 狭い） */
+  border-width: 0;
+  box-shadow: 0 10px 15px -3px rgba(242, 193, 78, 0.2), 0 4px 6px -4px rgba(242, 193, 78, 0.2);
+}
+
+/* 部位ピル（1 段小さい第 2 軸） */
+.oa-subpill {
+  padding: 6px 12px;
+  border-radius: var(--oa-radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  background-color: var(--oa-surface);
+  border: 1px solid transparent;
+  color: var(--oa-text-400);
+  transition: background-color var(--oa-transition), border-color var(--oa-transition), color var(--oa-transition);
+}
+.oa-subpill:hover {
+  background-color: var(--oa-surface-hover);
+}
+.oa-subpill[data-active='true'] {
+  background-color: var(--oa-select-bg);
+  color: var(--oa-select-fg);
+  border-color: var(--oa-select-border);
+}
+
+/* ------------------------------------------------------------
+ * チップ（カード上段の分類表示・押せない）
+ * ---------------------------------------------------------- */
+.oa-chip-accent {
+  padding: 4px 12px;
+  border-radius: var(--oa-radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  background-color: rgba(242, 193, 78, 0.2);
+  color: var(--oa-accent-300);
+}
+.oa-chip {
+  padding: 4px 8px;
+  border-radius: var(--oa-radius-xs);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  background-color: var(--oa-surface);
+  color: var(--oa-text-400);
+}
+.oa-chip-region {
+  padding: 4px 8px;
+  border-radius: var(--oa-radius-xs);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  background-color: var(--oa-region-bg);
+  color: var(--oa-region-fg);
+}
+
+/* タグ（カード下段・押せる） */
+.oa-tag {
+  padding: 4px 8px;
+  border-radius: var(--oa-radius-sm);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  background-color: var(--oa-surface);
+  color: var(--oa-text-400);
+  transition: background-color var(--oa-transition), color var(--oa-transition);
+}
+.oa-tag:hover {
+  background-color: rgba(242, 193, 78, 0.2);
+  color: var(--oa-accent-400);
+}
+
+/* ------------------------------------------------------------
+ * 入力欄（旧 `pl-12 pr-12 py-4 rounded-2xl`・高さ 58px）
+ * ---------------------------------------------------------- */
+.oa-input {
+  display: block;
+  width: 100%;
+  padding: 16px 48px;
+  border-radius: var(--oa-radius-lg);
+  background-color: var(--oa-surface);
+  border: 1px solid var(--oa-border);
+  color: var(--oa-text);
+  font-size: 16px;
+  line-height: 24px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  transition: background-color var(--oa-transition), border-color var(--oa-transition);
+}
+.oa-input::placeholder {
+  color: var(--oa-text-400);
+}
+.oa-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--oa-accent-500);
+}
+
+/* ------------------------------------------------------------
+ * ボタン（旧 K2 の「ブックマーク」様式。高さ 38px）
+ * ---------------------------------------------------------- */
+.oa-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--oa-radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  background-color: var(--oa-surface);
+  border: 1px solid var(--oa-border);
+  color: var(--oa-text-400);
+  transition: background-color var(--oa-transition), color var(--oa-transition);
+}
+/* hover で動くのは**面だけ**（旧 K2 のブックマーク `hover:bg-white/10`。文字色は動かない）。
+   K2 の審査 2 回目 H1 で、`color` が上がるのは出力側だけだと画素で確認された
+   （参照 `rgb(126,137,166)` のまま ↔ 出力 `rgb(157,168,195)`）。出所の旧宣言に合わせる */
+.oa-button:hover {
+  background-color: var(--oa-surface-hover);
+}
+
+/* アイコンだけのボタン（カード右上のブックマーク・32×32） */
+.oa-iconbutton {
+  padding: 6px;
+  border-radius: var(--oa-radius-md);
+  color: var(--oa-text-500);
+  transition: color var(--oa-transition), background-color var(--oa-transition);
+}
+.oa-iconbutton:hover {
+  color: var(--oa-text-300);
+}
+
+/* タブの定義は「右列（タブ ＋ パネル）」に 1 つだけ置く。
+   K1 の PR がここに置いた暫定版（角丸を非選択にも当て、font-weight 500）は、
+   P1 の計測（非選択も 700・角丸は選択中だけ）で置き換えた。 */
+
+/* ------------------------------------------------------------
+ * ナレッジ一覧（K1）。値は ref-old-knowledge*.json の計測から写す
+ * ---------------------------------------------------------- */
+
+/* root。旧 main は 1184（サイドバー 256）。PHYSIOS のレールは 92 なので中央に置く（director C1 案 B） */
+.oa-root {
+  max-width: 1184px;
+  margin-inline: auto;
+}
+/* 案 A: レール直後に左寄せ（節目の報告に両案のスクショを添える） */
+.oa-root--left {
+  margin-inline: 0 auto;
+}
+
+/* 見出し帯（旧 `text-center space-y-4 py-6`・高さ 168）。
+   旧の 3 行（題 → 説明 → 件数）に、PHYSIOS 専用の「記事を書く」が加わる。
+   DOM 順は **題 → 説明 → 件数 → 操作**（階層を逆転させない・審査 1 回目 C-b）。 */
+.oa-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  padding-block: 24px;
+  text-align: center;
+}
+/* 送りは **margin** で書く（旧の `space-y-4` と同じ）。`row-gap` にすると
+   参照の `margin: 16px 0 0` と計算済み値が食い違う */
+.oa-head > * + * {
+  margin-top: 16px;
+}
+
+/* 「記事を書く」。
+   - <768: 題と並べると 342px の版面に入らないので**見出し帯の末尾**に独立行・右端。
+     題・説明・件数の y は参照どおりに残り、送りは検索欄以降だけになる
+   - >=768: h1 と同じ grid セルに重ね、h1 の box（1024 幅）を保ったまま右端に置く。
+     grid の重ねであって絶対配置ではない（フロー方式） */
+.oa-headaction {
+  justify-self: end;
+}
+@media (min-width: 768px) {
+  /* **4 つとも明示的に置く。** 操作だけを `grid-row: 1` にすると、明示配置が先に
+     行われるぶん自動配置の題が 2 行目に押し出される */
+  .oa-h1 {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .oa-lead {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .oa-headmeta {
+    grid-row: 3;
+    grid-column: 1;
+  }
+  .oa-headaction {
+    grid-row: 1;
+    grid-column: 1;
+    align-self: center;
+    margin-top: 0;
+  }
+}
+
+.oa-h1 {
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 40px;
+  color: var(--oa-text);
+}
+/* `:lang(ja) { letter-spacing: 0 }`（globals.css §2-2）と同じ詳細度なので、
+   包みで 1 段上げて旧の `tracking-tight`（-0.025em = 36px で -0.9px）を通す */
+.oa-page .oa-h1 {
+  letter-spacing: -0.025em;
+}
+.oa-lead {
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--oa-text-200);
+}
+/* 「N 件」。旧は「Pro バッジ ＋ 180 件の記事」で行高 24。Pro を落としても
+   **行高は参照の 24 のまま**にする（以降の y をずらさない） */
+.oa-headmeta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 24px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--oa-text-300);
+}
+
+/* 検索欄（旧 `relative max-w-2xl mx-auto`・672×58） */
+.oa-search {
+  position: relative;
+  max-width: 672px;
+  margin-inline: auto;
+}
+/* 参照でも絶対配置（フロー方式の例外・種別 decoration） */
+.oa-search-icon {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  padding-left: 16px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--oa-text-400);
+}
+
+/* 分類ピルの段（旧 `space-y-3`） */
+.oa-filters > * + * {
+  margin-top: 12px;
+}
+.oa-subrow {
+  align-items: center;
+}
+.oa-subrow-label {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+
+/* Quelle の注記（ビュー先頭で 1 度だけ・J217 / J230-4） */
+.oa-note {
+  text-align: center;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--oa-text-400);
+  opacity: 0.5;
+}
+.oa-empty {
+  text-align: center;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--oa-text-300);
+}
+
+/* カードグリッド（旧 `grid grid-cols-1 md:grid-cols-2 gap-4`） */
+.oa-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .oa-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.oa-cardwrap {
+  position: relative;
+}
+.oa-cardbody {
+  height: 100%;
+}
+/* 参照でも絶対配置（フロー方式の例外・種別 decoration）。旧 `absolute top-4 right-4` */
+.oa-cardbookmark {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+}
+
+.oa-cardchips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.oa-cardtitle {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--oa-text-50);
+  padding-right: 32px;
+  margin-bottom: 8px;
+}
+.oa-carddesc {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--oa-text-300);
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.oa-cardtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.oa-cardmeta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 16px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+
+/* ページ送り（裁定 J230-3。旧に対応部品が無いので K2「ブックマーク」様式を使う） */
+.oa-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.oa-pager-range {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+
+/* ------------------------------------------------------------
+ * ブックマーク済（裁定 J234）
+ *
+ * 旧は `bg-yellow-500/20 text-yellow-400 border-yellow-500/30`。**写すのはトークンの側**
+ * なので PHYSIOS のゴールドで置く（§10-2 の「旧がゴールドを置いていた箇所」の例外）。
+ * ティント面の上の文字は `--oa-accent-400` で 7.25:1（`navy-900` は 1.72:1 で読めない）。
+ * ---------------------------------------------------------- */
+.oa-button[data-on='true'] {
+  background-color: rgba(242, 193, 78, 0.2);
+  border-color: rgba(242, 193, 78, 0.3);
+  color: var(--oa-accent-400);
+}
+.oa-button[data-on='true']:hover {
+  background-color: rgba(242, 193, 78, 0.2);
+  color: var(--oa-accent-400);
+}
+
+/* ------------------------------------------------------------
+ * 参考文献（記事詳細・裁定 J233。`EvidenceList` の `variant="old-app"` が使う）
+ *
+ * 計測: `docs/design-verify/old-app/verify/ref-old-article-wrap.json` の `div#15..#19`。
+ * ---------------------------------------------------------- */
+.oa-ref-card {
+  padding: 16px;
+  border-radius: var(--oa-radius-md);
+  background-color: var(--oa-surface);
+  border: 1px solid var(--oa-border);
+}
+.oa-ref-index {
+  margin-bottom: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--oa-text-300);
+  font-variant-numeric: tabular-nums;
+}
+.oa-ref-authors {
+  margin-bottom: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--oa-text-100);
+  font-variant-numeric: tabular-nums;
+}
+.oa-ref-title {
+  margin-bottom: 8px;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--oa-text-200);
+}
+.oa-ref-meta {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--oa-text-400);
+}
+.oa-ref-journal {
+  font-style: italic;
+}
+.oa-ref-doi {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--oa-accent-400);
+  transition: color var(--oa-transition);
+}
+.oa-ref-doi:hover {
+  color: var(--oa-accent-300);
+}
+
+/* ------------------------------------------------------------
+ * 選手詳細（P1〜P4 の骨格 ＋ P1 トレーニング）。
+ * 値は ref-old-patient-training{,-extra,-wrap}.json の計測から写す。
+ * 意味論の裁定は design-judge J236（DESIGN_SYSTEM.md §10-6）。
+ * ---------------------------------------------------------- */
+
+/* 旧 div#1: 幅の制約を持たない（1440 で 1136 = 1184 − 48） */
+.oa-pwrap {
+  width: 100%;
+}
+/* 旧 div#2: 12 列グリッド。左 4 列 362.66 / 右 8 列 749.34 / gap 24（計測から逆算） */
+.oa-pgrid {
+  display: grid;
+  /* `1fr` は `minmax(auto, 1fr)` なので、中身の最小幅で列が版面からはみ出す（390 で 379.59）。
+     旧は 342 に収まっているので `minmax(0, 1fr)` で止める */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+@media (min-width: 1024px) {
+  .oa-pgrid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .oa-lcol {
+    grid-column: span 4 / span 4;
+  }
+  .oa-rcol {
+    grid-column: span 8 / span 8;
+  }
+}
+/* 左列の縦の送りは旧の `space-y-4`（計測: div#21 の margin 16px 0 0） */
+.oa-lcol > * + * {
+  margin-top: 16px;
+}
+
+/* ---- 左カード 1（戻る・名前・参加区分・メタ・復帰見込み）---- */
+.oa-lcard {
+  background-color: rgba(16, 26, 53, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--oa-radius-lg);
+}
+.oa-lhead {
+  padding: 20px 20px 12px;
+}
+.oa-lnamerow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 旧 div#6 の計測値（margin 0 0 4px）。メタ行への送りはここが持つ */
+  margin-bottom: 4px;
+}
+.oa-back {
+  display: inline-flex;
+  padding: 4px;
+  margin-left: -4px;
+  border-radius: var(--oa-radius-full);
+  color: var(--oa-text);
+  transition: background-color var(--oa-transition), color var(--oa-transition);
+}
+/* 旧 svg#0 の計測値（山括弧だけが沈んだ色） */
+.oa-back svg {
+  color: var(--oa-text-300);
+}
+.oa-back:hover {
+  background-color: var(--oa-surface-hover);
+}
+/* 旧の名前は **flex の残り**を取る（幅 162.81 = 行 324.66 − 戻る 24 − gap 8×2 − 状態 121.84）。
+   文字幅ではないので `flex: 1` で写す */
+.oa-lname {
+  flex: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--oa-text);
+}
+/* 旧 div#7 の margin は 0（名前が flex で伸びる）。`margin-left: auto` にしない */
+.oa-lstatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  text-align: right;
+}
+/* 参加区分のドットと ping（M-1 の対象。旧 div#8 > div#9 > div#10。参照でも absolute） */
+.oa-ping {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.oa-ping-dot {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--oa-radius-full);
+}
+.oa-ping-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--oa-radius-full);
+  background-color: inherit;
+  opacity: 0.75;
+  /* 名前も旧の宣言値のまま（`ping`）。compare --animations は animation-name で対応づける */
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+.oa-lstatusword {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+}
+/* 参加区分の色（director §4）。旧の「要対応」赤 rgb(248,113,113) をそのまま
+   離脱中に充て、制限付きは旧のゴールド、完全参加は teal。ping は離脱中のみ */
+.oa-part--out .oa-lstatusword {
+  color: rgb(248, 113, 113);
+}
+.oa-part--out .oa-ping-dot {
+  background-color: rgb(248, 113, 113);
+}
+.oa-part--limited .oa-lstatusword {
+  color: var(--oa-accent-400);
+}
+.oa-part--limited .oa-ping-dot {
+  background-color: var(--oa-accent-400);
+}
+.oa-part--full .oa-lstatusword {
+  color: rgb(45, 212, 191);
+}
+.oa-part--full .oa-ping-dot {
+  background-color: rgb(45, 212, 191);
+}
+.oa-part--unset .oa-lstatusword {
+  color: var(--oa-text-400);
+}
+.oa-part--unset .oa-ping-dot {
+  background-color: var(--oa-text-400);
+}
+.oa-lstatusnote {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 15px;
+  color: var(--oa-text-400);
+}
+.oa-lmeta {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+  margin-left: 24px;
+}
+/* 旧 div#12（空の帯・高さ 16）。名前ブロックと復帰カードの間の送り */
+.oa-lgap {
+  padding: 0 20px 16px;
+}
+.oa-lret {
+  padding: 0 20px 16px;
+}
+/* 復帰見込みカード。超過時は旧のまま赤、非超過は通常面＋金（director §4） */
+.oa-retcard {
+  padding: 12px;
+  border-radius: var(--oa-radius-md);
+  background-color: var(--oa-surface);
+  border: 1px solid var(--oa-border);
+}
+.oa-retcard--over {
+  background-color: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+/* 旧 div#15 の計測値（margin 0 0 8px）。バーへの送りはここが持つ */
+.oa-retrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+/* 旧 div#16 は**内容幅**（107.63）。右寄せは行の `justify-content` が担う（審査 1 回目 M4） */
+.oa-retleft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.oa-reticon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--oa-radius-md);
+  background-color: rgba(242, 193, 78, 0.2);
+  color: var(--oa-accent-400);
+  flex-shrink: 0;
+}
+.oa-retcard--over .oa-reticon {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: rgb(248, 113, 113);
+}
+.oa-retlabel {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 15px;
+  color: var(--oa-text-400);
+}
+.oa-retdate {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+/* 「あと N 日」/「N 日超過」。旧の超過ピル様式（面 20% ・枠 30% ・12px/700） */
+.oa-retpill {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: var(--oa-radius-md);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  background-color: rgba(242, 193, 78, 0.2);
+  border: 1px solid rgba(242, 193, 78, 0.3);
+  color: var(--oa-accent-400);
+}
+.oa-retcard--over .oa-retpill {
+  background-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: rgb(248, 113, 113);
+}
+.oa-bar {
+  height: 6px;
+  border-radius: var(--oa-radius-full);
+  background-color: var(--oa-surface-hover);
+}
+.oa-barfill {
+  height: 6px;
+  border-radius: var(--oa-radius-full);
+  background-color: rgb(245, 158, 11);
+}
+
+/* ---- 左カード 2（選手用アプリ）---- */
+.oa-appcard {
+  padding: 24px;
+  border-radius: var(--oa-radius-lg);
+  border: 1px solid var(--oa-border);
+  background-image: linear-gradient(to right bottom, rgba(13, 21, 48, 0.5), rgba(8, 14, 31, 0.5));
+}
+.oa-apphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--oa-text);
+}
+.oa-applead {
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text-300);
+}
+.oa-appbox {
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: var(--oa-radius-md);
+  background-color: rgba(0, 0, 0, 0.2);
+}
+.oa-approw {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.oa-apptext {
+  min-width: 0;
+  flex: 1;
+}
+.oa-applabel {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+/* 値が URL のときだけ旧 p#7 の mono（審査 1 回目 §5-2 (b)） */
+.oa-appvalue--url {
+  font-family: "JetBrains Mono", "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas, "Courier New", monospace;
+}
+.oa-appvalue {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 旧「コピー」ボタン（ゴールド面・16px/500・h40） */
+.oa-appbutton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: var(--oa-radius-md);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  background-color: var(--oa-accent-500);
+  color: var(--oa-accent-900);
+  transition: background-color var(--oa-transition);
+}
+.oa-appbutton:hover {
+  background-color: var(--oa-accent-400);
+}
+
+/* ---- 右列（タブ ＋ パネル）---- */
+.oa-tabs {
+  display: flex;
+  overflow-x: auto;
+}
+.oa-tabwrap {
+  flex-shrink: 0;
+}
+/* 旧の非選択タブは**角丸を持たない**（計測: border-radius 0px）。選択中だけ上 2 隅が 12px */
+.oa-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text-500);
+  white-space: nowrap;
+  transition: background-color var(--oa-transition), color var(--oa-transition);
+}
+/* hover は**面のみ**（K1 / K2 / R で確定・審査 1 回目 M5）。旧の文字色 hover は写さない */
+.oa-tab[data-active='true'] {
+  border-radius: var(--oa-radius-md) var(--oa-radius-md) 0 0;
+  background-color: rgb(22, 34, 74);
+  color: var(--oa-accent-400);
+}
+.oa-panel {
+  padding: 24px;
+  border-radius: 0 var(--oa-radius-lg) var(--oa-radius-lg) var(--oa-radius-lg);
+  background-color: rgb(22, 34, 74);
+}
+.oa-phead {
+  display: flex;
+  align-items: flex-start;
+}
+.oa-ptitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 2px;
+}
+.oa-pbar {
+  width: 6px;
+  height: 24px;
+  border-radius: var(--oa-radius-full);
+  background-color: var(--oa-accent-500);
+  flex-shrink: 0;
+}
+/* 旧 h3#1 の計測値。**390 では 18px / lh 22.5** に落ちる（旧の `text-lg md:text-xl`） */
+.oa-ptitletext {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 22.5px;
+  color: var(--oa-text);
+}
+@media (min-width: 1024px) {
+  .oa-ptitletext {
+    font-size: 20px;
+    line-height: 28px;
+  }
+}
+
+/* ---- Day カード（J236-1 / J236-3 / J236-4）---- */
+.oa-days {
+  margin-top: 24px;
+}
+.oa-days > * + * {
+  margin-top: 16px;
+}
+.oa-day {
+  position: relative;
+  border-radius: var(--oa-radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: var(--oa-surface);
+  opacity: 0.8;
+}
+/* 過去日（旧 Day 1・Day 2 の計測値） */
+.oa-day--past {
+  background-color: rgba(255, 255, 255, 0.03);
+  opacity: 0.6;
+}
+/* 当日（旧 Day 3）。ゴールド枠と pulse は §10-6 でそのまま写す */
+.oa-day--today {
+  background-color: rgba(16, 26, 53, 0.75);
+  border-color: rgba(255, 255, 255, 0.06);
+  opacity: 1;
+}
+/* 参照でも absolute（フロー方式の例外・種別 decoration） */
+.oa-day-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--oa-accent-500);
+  border-radius: var(--oa-radius-md);
+  pointer-events: none;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+.oa-day-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--oa-radius-md);
+  background-image: linear-gradient(to right bottom, rgba(242, 193, 78, 0.1), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+.oa-dayhead {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: left;
+  /* 旧 div#43 / div#51 の計測値（角丸なし・下線 1px） */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.oa-day--past .oa-dayhead {
+  padding: 12px;
+}
+button.oa-dayhead {
+  transition: background-color var(--oa-transition);
+}
+button.oa-dayhead:hover {
+  background-color: var(--oa-surface);
+}
+/* 日付ピル（J236-1: 語は M/D） */
+.oa-daypill {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: var(--oa-radius-xs);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  background-color: var(--oa-surface-hover);
+  color: var(--oa-text-400);
+}
+.oa-day--today .oa-daypill {
+  background-color: var(--oa-accent-500);
+  color: rgb(10, 17, 36);
+}
+/* 曜 ・ 位相の語（旧「休息日」の位置・12px/500 rgb(156,163,175)） */
+.oa-dayphase {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: rgb(156, 163, 175);
+}
+.oa-daystate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+/* 「完了」（旧 Done の様式） */
+.oa-daydone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  color: rgb(74, 222, 128);
+}
+/* 「d/n 完了」（旧「0/16 完了」ピルの様式） */
+.oa-dayprogress {
+  padding: 4px 8px;
+  border-radius: var(--oa-radius-xs);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  background-color: rgba(242, 193, 78, 0.2);
+  border: 1px solid rgba(242, 193, 78, 0.3);
+  color: var(--oa-accent-400);
+}
+.oa-daychevron {
+  flex-shrink: 0;
+  /* 旧 svg#8（Day カードの chevron）の計測値 */
+  color: var(--oa-text-400);
+}
+.oa-daybody {
+  position: relative;
+  padding: 8px;
+}
+.oa-daynote {
+  position: relative;
+  padding: 0 16px 16px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+
+/* ---- 種目行 ---- */
+/* 行の送りは旧の `space-y-1`（計測: 行 48 ＋ 4 = ピッチ 52） */
+.oa-daybody > * + * {
+  margin-top: 4px;
+}
+.oa-row {
+  display: flex;
+  align-items: center;
+  /* 旧の行内 gap は 12（checkbox 20 → 行ボタンの静的位置 483.66 まで 12） */
+  gap: 12px;
+  padding: 8px;
+  border-radius: var(--oa-radius-md);
+}
+/* 完了の表示。**操作ではない**（J236-4）ので span で描く */
+.oa-rowcheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--oa-radius-xs);
+  border: 2px solid rgba(242, 193, 78, 0.5);
+  /* 旧の checkbox（button）の計測値 */
+  color: var(--oa-text);
+}
+/* 旧 button#12 は 40 高（`padding 4` ＋ `margin -4` で流れの占有は 32 → 行 48・ピッチ 52）。
+   再生タイルを置かないこと（J236-5）は**要素の不在**であって、行 box を縮める根拠ではない
+   （審査 1 回目 M1） */
+.oa-rowbtn {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  min-width: 0;
+  flex: 1;
+  padding: 4px;
+  margin: -4px;
+  border-radius: var(--oa-radius-md);
+  text-align: left;
+  transition: background-color var(--oa-transition);
+}
+.oa-rowbtn:hover {
+  background-color: var(--oa-surface);
+}
+/* 旧 span#13 は**1 行で省略**（390 でも 1 行）。省略は overflow であって文言の削除ではない */
+.oa-rowname {
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: rgb(229, 231, 235);
+}
+/* **折り返すのは用量側**（審査 1 回目 M2）。PHYSIOS の用量は旧「· 3セット」より長い。
+   名前が 1 行で読める幅（行ボタンの 50% 以上）を保つため、縮むのはこちらにする */
+.oa-rowdose {
+  min-width: 0;
+  max-width: 45%;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgb(156, 163, 175);
+}
+
+/* ------------------------------------------------------------
+ * 選手詳細・カルテタブ（P2 `patient-chart`）。
+ * 値は ref-old-patient-chart.json（凍結）の計測と、参照スクショの画素走査から写す。
+ * **参照の div / span は計測できていない**（旧アプリのログインが期限切れ・C8 の
+ * `-extra` / `-wrap` が撮れない）ので、面・帯・バーの値は
+ * `ref-old-patient-chart-page-1440.png` の画素から逆算した（`status-patient-chart.md` §1）。
+ * 意味論の裁定は design-judge J237（DESIGN_SYSTEM.md §10-7）。
+ * ---------------------------------------------------------- */
+
+/* パネル内のカードの縦の送り（旧 `space-y-6`。計測: カード間 24px） */
+.oa-cards > * + * {
+  margin-top: 24px;
+}
+
+/* カード。面はパネル（rgb(22,34,74)）の上に置かれ、(18,28,59) に見える。
+   左カード（`.oa-lcard`）と同じ 2 値で、旧アプリの同じ部品である */
+.oa-ccard {
+  background-color: rgba(16, 26, 53, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--oa-radius-lg);
+  /* 帯の面が角丸の外へ出ないようにする（旧も帯の左右上が丸い） */
+  overflow: hidden;
+}
+
+/* 見出しの帯。高さ 50（= padding 12 ＋ 26px のピル）／54（= 12 ＋ 30）は
+   **中の一番高いボタンが決める**（旧も同じ。align-items は既定の stretch） */
+.oa-chead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  background-color: var(--oa-surface);
+  border-bottom: 1px solid var(--oa-surface);
+}
+.oa-ctitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+/* 題の左の縦バー（計測: 4×16・r9999・カードごとに色が違う） */
+.oa-cbar {
+  width: 4px;
+  height: 16px;
+  border-radius: var(--oa-radius-full);
+  flex-shrink: 0;
+}
+.oa-cbar--profile {
+  background-color: rgb(16, 185, 129);
+}
+.oa-cbar--injury {
+  background-color: rgb(59, 130, 246);
+}
+.oa-cbar--karte {
+  background-color: var(--oa-accent-500);
+}
+/* 件数（旧「セッション記録 (0件)」の淡い後置）。**色は画素走査からの目視**である */
+/* 旧 span#9「(0件)」の計測値: 12px/400・**行箱 16**・margin 0
+   （題との間 8 は `.oa-ctitle` の flex gap が持つ。旧も同じ） */
+.oa-ccount {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+/* 旧 div#38 / #60 の計測値は margin 0。右寄せは帯の `justify-content: space-between` が持つ */
+.oa-cactions {
+  display: flex;
+  gap: 8px;
+}
+.oa-cbody {
+  padding: 20px;
+}
+
+/* 帯の小ボタン（旧 button#9「✏️ 編集」・button#10「記録を編集」の計測値） */
+.oa-cbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid var(--oa-border);
+  border-radius: var(--oa-radius-md);
+  background-color: transparent;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+  white-space: nowrap;
+  transition: background-color var(--oa-transition);
+}
+/* hover は**面のみ**（K1 / K2 / R / P1 で確定・P1 審査 1 回目 M5） */
+.oa-cbtn:hover {
+  background-color: var(--oa-surface);
+}
+/* 金の小ボタン（旧 button#12「+ 新規セッション」の計測値） */
+.oa-cbtn--gold {
+  padding: 6px 16px;
+  border: 0;
+  background-color: var(--oa-accent-500);
+  color: var(--oa-accent-900);
+  font-weight: 700;
+}
+.oa-cbtn--gold:hover {
+  background-color: var(--oa-accent-400);
+}
+
+/* 値の格子（旧: 3 列 gap 16 ／ 疾患情報は 2 列。390 でも列数は変わらない） */
+.oa-cgrid {
+  display: grid;
+  gap: 16px;
+}
+.oa-cgrid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.oa-cgrid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* `.oa-page` を前置きして詳細度を 1 段上げる——`@import` は Tailwind の `@layer base` より
+   前に出るので、`:lang(ja) { letter-spacing: 0 }` と同詳細度では負ける（K1 の実装ミス 2）。
+   旧のラベルは `tracking-wider` 相当の **0.5px**（計測値） */
+.oa-page .oa-flabel {
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 15px;
+  letter-spacing: 0.5px;
+  color: var(--oa-text-400);
+}
+.oa-fvalue {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+/* 未記録（旧の斜体・淡色。J237-4: 器と編集入口のある欄だけに出す） */
+.oa-funset {
+  font-style: italic;
+  color: var(--oa-text-500);
+}
+/* 復帰予定の下の 1 行（旧 p#28「37日超過」の計測値。色は旧のまま） */
+.oa-fnote {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 15px;
+  color: rgb(52, 211, 153);
+}
+
+/* ---- カルテの行（旧は 0 件で未計測＝参照に対応要素が無い）----
+   **区切り線行で確定**（裁定 J237-3 ＋ 審査 1 回目 §4-2）。director §6 のもう一方の案
+   （各行を内カード）は、帯の面（白 5%）と同じ面を 1 段内側に足して帯の役割をぼかすため
+   不採用になった。**不採用案の宣言はここに残さない**——数値は DESIGN.md P2-11 が持つ */
+.oa-krows > * + * {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.oa-krows > * {
+  padding: 8px 0;
+}
+.oa-kmeta {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 15px;
+  color: var(--oa-text-400);
+}
+.oa-ktitle {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+.oa-kbody {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text-200);
+  white-space: pre-wrap;
+}
+.oa-kfield {
+  margin-top: 6px;
+}
+.oa-page .oa-kfieldlabel {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  letter-spacing: 0.5px;
+  color: var(--oa-text-400);
+}
+.oa-kempty {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text-400);
+}
+
+/* ---- 新規カルテ記録（旧はパネルの中身をまるごと差し替える面・J237-1）---- */
+/* 旧の外側の送りは **24**（題 → 記録日時の箱 → 欄の束 → 下端）。欄どうしは 16（`.oa-kffields`）。
+   **gap ではなく margin-top で送る**——旧が `space-y` で送っており、compare は margin を比べる */
+.oa-kform > * + * {
+  margin-top: 24px;
+}
+/* 旧 div#38: 欄カードの束。ここだけ送りが 16 */
+.oa-kffields > * + * {
+  margin-top: 16px;
+}
+.oa-kfhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* 旧の「新規カルテ記録」の題はカードの題（14/700・バー 16）より一段大きい。
+   画素走査: 見出しの字面 17px（カードの題は 13px ＝ 14px 指定）→ **18px**、
+   バーは y 149..168 の **4×20**（審査 1 回目 N1） */
+.oa-kftitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--oa-text);
+}
+.oa-kftitle .oa-cbar {
+  height: 20px;
+}
+/* 旧 button#8「✕ キャンセル」の計測値: 12px/400・lh16・padding 6px 12px・`rgb(126,137,166)` */
+.oa-kfcancel {
+  margin-left: auto;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+  transition: color var(--oa-transition);
+}
+.oa-kfcancel:hover {
+  color: var(--oa-text-200);
+}
+/* 欄のカード（旧 div#37 / #39..#43 の計測値: r**12**・padding 16・面 .75・枠 .06） */
+.oa-kfcard {
+  padding: 16px;
+  border-radius: var(--oa-radius-md);
+  background-color: rgba(16, 26, 53, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+/* 欄（主訴・所見・評価・治療・計画）のラベル。画素走査: `rgb(244,204,99)` */
+.oa-kflabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--oa-accent-400);
+}
+/* **記録日時の箱のラベルは金ではない**（審査 1 回目 N2）。
+   画素走査: ラベルの峰 `rgb(121,132,162)`（= `--oa-text-400` のアンチエイリアス）・
+   値の峰 `rgb(255,255,255)` */
+.oa-kfdatelabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+.oa-kfvalue {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+/* 画素走査: 欄カードの面 `rgb(18,28,59)` の上に `rgb(29,39,69)`（= 白 5%）、
+   枠は `rgb(52,60,87)`（= その上に白 10%）。着手時は `rgba(0,0,0,.2)` で暗すぎた */
+.oa-kfinput,
+.oa-kftext {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--oa-border);
+  border-radius: var(--oa-radius-md);
+  background-color: var(--oa-surface);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+/* 記録日時の値は白 700（旧は表示のみ・PHYSIOS は編集可の input・J222-2） */
+.oa-kfinput {
+  font-weight: 700;
+}
+.oa-kftext {
+  /* 旧 textarea#0..#4 の計測値 86（padding 12×2 ＋ 枠 2 ＋ 3 行 60） */
+  min-height: 86px;
+  resize: vertical;
+}
+.oa-kfinput::placeholder,
+.oa-kftext::placeholder {
+  color: var(--oa-text-500);
+}
+.oa-kfinput:focus,
+.oa-kftext:focus {
+  outline: none;
+  border-color: rgba(242, 193, 78, 0.5);
+}
+.oa-kfepisodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.oa-kfepisode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--oa-border);
+  border-radius: var(--oa-radius-md);
+  background-color: transparent;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-300);
+  transition: background-color var(--oa-transition);
+}
+.oa-kfepisode:hover {
+  background-color: var(--oa-surface);
+}
+.oa-kfepisode[data-on='true'] {
+  background-color: rgba(242, 193, 78, 0.2);
+  border-color: rgba(242, 193, 78, 0.3);
+  color: var(--oa-accent-400);
+}
+/* 旧 button#9 / #10 の計測値: 2 列・gap 12・幅 345.67 / 343.67・高さ 46
+   （14px/700・lh20・padding `12px 0`・r12）。**旧の「キャンセル」は白ではなく `rgb(157,168,195)`** */
+.oa-kffoot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  /* 旧 div#44 の計測値 */
+  padding-top: 8px;
+}
+.oa-kfbtn {
+  padding: 12px 0;
+  border-radius: var(--oa-radius-md);
+  background-color: var(--oa-surface);
+  border: 1px solid var(--oa-border);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text-300);
+  transition: background-color var(--oa-transition);
+}
+.oa-kfbtn:hover {
+  background-color: var(--oa-surface-hover);
+}
+/* 一次（旧 button#13「新規セッション」の計測値: 16/700・r12・p 12/24・金） */
+.oa-kfbtn--gold {
+  /* 旧 button#10 は枠を持たない（金のベタ面） */
+  border: 0;
+  background-color: var(--oa-accent-500);
+  color: var(--oa-accent-900);
+}
+.oa-kfbtn--gold:hover {
+  background-color: var(--oa-accent-400);
+}
+.oa-kfbtn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.oa-kferror {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: rgb(248, 113, 113);
+}
+
+/* ============================================================
+ * P4 選手詳細／レポート（root `patient-analytics`・裁定 J239）
+ *
+ * 値の出所は 2 つだけである。
+ *   (1) 凍結 JSON `ref-old-patient-analytics{,-page}.json`（h3 / p / button の計測値）
+ *   (2) **再ログイン後の追加計測** `-extra`（span/input/svg）・`-wrap`（包み div）・`-svg`
+ *       （2026-09-16・審査 1 回目のあと。審査までは参照スクショの画素計測で埋めており、
+ *        その注記は `px` で残してある。目分量の値は 1 つも無い）
+ *
+ * **画素で埋めた値は「一致」ではなく「未判定」である**（審査 1 回目 §3）。director が参照の画素と
+ * 突き合わせて初めて判定になるので、注記を 2 種に分ける:
+ *   `px（審査 1 回目で一致）` — director が突き合わせて一致した値
+ *   `px（未判定）`           — まだ突き合わせていない値
+ * 旧アプリに再ログインできたら `-extra` / `-wrap` / svg の 3 本を撮り、差を全件報告する。
+ * 画素計測の原点は 1440 が `screenshot = root + (256, 58)`、390 が `root + (0, 57)`。
+ *
+ * 旧に譲らなかった点（J239）はここには現れない値として効く——縦軸は 0/3/6（旧 0/3/6/10）、
+ * 系列はストレスを除く 2 本、窓の語は「直近 N 日」、節の見出しは「選手のことば」。
+ * ============================================================ */
+
+/* ---- 節の見出し（旧 h3#1 / h3#2。box は 18px/700 lh28 mb16 の全幅）---- */
+.oa-anhead {
+  display: flex;
+  align-items: center;
+  /* 縦棒と題の間は**包みの gap**（旧の縦棒 span は margin を持たない・`-extra` span#2 / span#6） */
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--oa-text);
+}
+/* 金の縦棒。**追加計測**（`-extra` の span#2 / span#6）: 4×20・`rgb(242,193,78)`・**r9999**・
+   1440 で x 459.66 / y 117（h3 の box 113..141 の中央）。
+   旧は `span` なので**擬似要素ではなく span で置く**——`::before` だと `-extra` の計測に
+   現れず、様式が compare にかからない */
+.oa-anbar {
+  flex-shrink: 0;
+  width: 4px;
+  height: 20px;
+  border-radius: var(--oa-radius-full);
+  background-color: var(--oa-accent-500);
+}
+
+/* ---- 窓の Pill（旧 button#8..#10。h36 / r12 / padding 8px 16px）----
+   語は「直近 7 日 / 直近 28 日」（J239-10）。**幅は語の長さによる派生**（G2）。
+   年間は drop（J239-10）。遷移なのでボタンではなくリンクである（J172-2 / J223-3） */
+.oa-anranges {
+  display: flex;
+  gap: 8px;
+}
+.oa-anrange {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: var(--oa-radius-md);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--oa-text-400);
+  background-color: var(--oa-surface);
+  transition: background-color 150ms, color 150ms;
+}
+/* hover は**面だけ**（K2 審査 2 回目 H1・DESIGN.md K1-17） */
+.oa-anrange:hover {
+  background-color: var(--oa-surface-hover);
+}
+.oa-anrange[data-active='true'] {
+  color: var(--oa-accent-900);
+  background-color: var(--oa-accent-500);
+}
+.oa-anrange[data-active='true']:hover {
+  background-color: var(--oa-accent-500);
+}
+
+/* ---- 折れ線（1 枚 2 系列・J239-1）----
+   縦の寸法は参照の画素計測をそのまま積む。pills の下端（root 193）から
+   中央値の罫（root 524）までが 331px で、内訳は
+   19（送り）+ 231（作図域）+ 6 + 16（日付行）+ 20 + 16（凡例）+ 23（底） = 331。
+   390 も同じ内訳で、pills 875 → 罫 1206（凍結の p#8 y=1224 と 16+1 で合う）。 */
+.oa-anchart {
+  margin-top: 19px;
+  padding-bottom: 23px;
+}
+/* **行の高さは作図域が決める**。目盛の字は上下に 8px はみ出す（下記）ので、
+   高さを成り行きにすると行が 239 になり、以降の送りが 8px ずれる */
+.oa-anplotrow {
+  display: flex;
+  align-items: flex-start;
+  height: 231px;
+}
+/* 目盛の字は**線の上に中心を置く**（旧は svg の `text` で `dominant-baseline` が中心）。
+   行箱の半分（8.25px）だけ上下にはみ出させ、`justify-between` の 3 点を線に合わせる。
+   **追加計測**（`-svg.json` の `text` / `tspan` #52〜#62）: **11px / 400 / 行箱 16.5px**。
+   審査 2 回目まで 12px / 16px だった（M7。`-svg.json` を撮っておきながら字の色でしか
+   突き合わせていなかった）。右端は内容左 + 32（旧「0」の box 右端 491.66 = 459.66 + 32）。
+   **色は画素から**——旧の `text` の CSS `color` は継承した白で、描画色は `fill` 属性が持つ */
+.oa-anyaxis {
+  flex-shrink: 0;
+  width: 40px;
+  height: 247.5px;
+  margin-top: -8.25px;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16.5px;
+  color: rgb(148, 163, 184);
+}
+/* **`overflow: visible` は必須**（審査 1 回目 M3）。svg の既定は `hidden` なので、
+   viewBox の端に置いた基線・縦軸線・両端の点が**半分に切られる**——基線が参照の
+   `rgb(148,163,184)` に対し `(91,103,133)`（＝半分の濃さ）になっていた */
+.oa-anplot {
+  min-width: 0;
+  flex: 1;
+  height: 231px;
+  overflow: visible;
+}
+/* 日付行。列の位置は作図域と同じ「両端 0%・100%」なので幅 0 の器を space-between で置く
+   （絶対配置を使わない・SKILL.md §5）。書式は既存の `formatDay`（`M/D`）である——
+   旧の `M月D日` は 7 点 390px に入らず、書式を幅で変えるのは発明になる */
+.oa-anxaxis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  margin-left: 40px;
+  height: 16.5px;
+}
+.oa-anxlabel {
+  width: 0;
+  display: flex;
+  justify-content: center;
+  white-space: nowrap;
+  /* 追加計測（`-svg.json` の `text` #48 / `tspan` #49）: **11px / 400 / 行箱 16.5px**（M7） */
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16.5px;
+  /* 1 回目の実装は `rgb(100,116,139)` で、CJK の細い字の反射から読んだ写し違いだった（M4） */
+  color: rgb(148, 163, 184);
+}
+/* 凡例（色ドット＋系列名）。**系列色は値によらず一定**（J239-1） */
+/* **追加計測**（`-extra` の span#3..#5 / svg#5..#7）: 字は **13px**・行箱 16・色は系列色（500 系）。
+   印 14×14 と字の間は **4**、項目の間は **10**。旧の凡例の包み（`-wrap` div#44）は
+   作図域より 20px 左へはみ出すが、これは recharts の `li` の余白と 3 項目の並びによる
+   計測アーティファクトで、項目数が 2 に変われば値も変わる（審査 1 回目 §5 の 4）——**写さない** */
+.oa-anlegend {
+  list-style: none;
+  padding: 0;
+  margin-block: 0;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+  height: 16px;
+}
+.oa-anlegenditem {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 19.5px;
+}
+/* 印と字の間は**印の margin** が持つ（旧 svg#6 / svg#7 の `margin: 0px 4px 0px 0px`）。
+   包みの gap にすると計算済み値が参照と食い違う */
+.oa-anlegendicon {
+  margin-right: 4px;
+}
+/* 凡例の印は**線 14px ＋ 中空の輪**（審査 1 回目 M6）。塗り点ではない。
+   px（審査 1 回目で一致）: 線 x 933..946（14 幅・太さ 2）・輪は線の中点に外径 7 / 内径 2 */
+.oa-anlegendicon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+}
+/* **系列色は 500 系**（審査 1 回目 S1・参照の画素）。線・点・凡例の印と字がこれである。
+   400 系（凍結 JSON の p#9 / p#11 の color）は**中央値の数字だけ**——
+   J239-1 が「p#9 / p#11 の color」と書いたのは隣接要素からの推定で、参照の画素が正である（G2） */
+.oa-an--pain {
+  color: rgb(239, 68, 68);
+}
+.oa-an--fatigue {
+  color: rgb(59, 130, 246);
+}
+/* 中央値の数字（凍結 JSON の p#9 / p#11 の計測値。compare が直接かかっている） */
+.oa-anmed--pain {
+  color: rgb(248, 113, 113);
+}
+.oa-anmed--fatigue {
+  color: rgb(96, 165, 250);
+}
+
+/* ---- 中央値（3 列は維持し、ストレスの列は空のまま・J239-5）---- */
+.oa-anmedians {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--oa-border);
+  text-align: center;
+}
+.oa-anmedlabel {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+.oa-anmedvalue {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+}
+/* 点が 0 件は `—`。旧の `0.0` は「値が無い」を「0」と言っている（J239-6） */
+.oa-anmedvalue--none {
+  color: var(--oa-text-400);
+}
+
+/* ---- 選手のことば（旧「日次レポート」の格子。J239-8 / J239-9）----
+   曜日行 32 ＋ gap 8 ＋ セル（1440: 86.19 角 / 390: 28 角）。列は 7 等分・gap 8 の 1 枚の grid で、
+   最初のセルだけ `grid-column-start` を持ち、以降は自動で流れる */
+/* `minmax(0, 1fr)` でないと、2 桁の日（10..16）の min-content が列幅を押し広げ、
+   390 でセルが 28 → 30 角になって格子が枠からはみ出す */
+.oa-ancal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.oa-anweekday {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgb(107, 114, 128); /* px（審査 1 回目で一致）: 旧の曜日見出し */
+}
+.oa-ancell {
+  aspect-ratio: 1;
+  /* grid の項目の `min-height: auto` は中身の高さになる。390 は中身（20+4+6）が
+     セル（28 角）より高いので、これを 0 にしないと正方形が崩れる。**はみ出しは旧と同じ**
+     （px（未判定）: 旧の数字の ink がセルの上下に食い込んでいる）ので `overflow` は切らない */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: var(--oa-radius-md);
+  background-color: var(--oa-surface);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: var(--oa-text);
+  transition: background-color 150ms;
+}
+.oa-ancell:hover {
+  background-color: var(--oa-surface-hover);
+}
+.oa-ancell[data-active='true'] {
+  background-color: rgba(242, 193, 78, 0.2);
+  color: var(--oa-accent-300);
+}
+/* 390 のセルは 28 角で、中身（20 ＋ 4 ＋ 6）がはみ出す。旧も同じである（px（未判定）: 数字の ink が
+   セルの上下に食い込んでいる）ので、寸法を縮めて収めない */
+/* **追加計測**（`-extra` の span#7）: **12px / 行箱 16 / gray-400 `rgb(156,163,175)`**。
+   凍結 JSON の `button#11` の `color`（白）・`font-size`（16px）は**器の値**であって、
+   可視の字ではない（審査 1 回目 M5）。ドットとの間は 4（`-wrap` div#60 の y 810.1 −
+   数字の box 下端 806.1）で、数字＋間＋ドット＝26 がセルの中央に来る */
+.oa-ancellday {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  color: rgb(156, 163, 175);
+}
+/* 「ことばあり」の印（旧は「記録あり」の緑ドット。J239-8 で読み替え） */
+.oa-ancelldot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--oa-radius-full);
+  background-color: rgb(16, 185, 129); /* px（審査 1 回目で一致）: 旧の緑ドット */
+}
+/* 選んだ日のことば（逐語・`line-clamp` 禁止・J239-9 / J241）。
+   **追加計測**（`-wrap` div#61）: 面 `rgba(255,255,255,0.05)` ／ 枠 **1px dashed**
+   `rgba(255,255,255,0.05)` ／ 角丸 **16** ／ padding `32px 0` ／ 字 14px/400 lh20
+   `rgb(107,114,128)`・中央揃え。高さ 86 は 1+32+20+32+1 の成り行きである。
+   格子の下端からの送りは 24 */
+.oa-anday {
+  margin-top: 24px;
+  border-radius: var(--oa-radius-lg);
+  background-color: var(--oa-surface);
+  border: 1px dashed rgba(255, 255, 255, 0.05);
+}
+.oa-anday--empty {
+  padding: 32px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: rgb(107, 114, 128);
+}
+/* 選んだ日（旧に対応する状態が無い＝目視確定待ち）。面・枠・角丸は無選択と同じ */
+.oa-anday--filled {
+  padding: 24px;
+}
+.oa-andaydate {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--oa-text-400);
+}
+.oa-andaytext {
+  white-space: pre-wrap;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text-200);
+}
+
+/* ---- 節（旧のカード）。1440 で card1 88..619 / card2 651..981 ＝ 面の間は 32 ---- */
+/* **タブ面のカードは panel より沈む**（審査 1 回目 M1）。K1 の `--oa-surface`（白 .05）だと
+   panel（`rgb(22,34,74)`）より浮き、面の階層が参照と逆になる。
+   **追加計測**（`ref-old-patient-analytics-wrap.json` の div#36 / div#49・2026-09-16 再ログイン後）:
+   面 `rgba(16,26,53,0.75)` ／ 枠 `1px solid rgba(255,255,255,0.06)` ／ 角丸 **16** ／ padding 24。
+   審査 1 回目に画素の曲率から 12 と読んだのは誤りで、計算済み値は 16 である */
+.oa-ansections > section {
+  padding: 24px;
+  border-radius: var(--oa-radius-lg);
+  background-color: rgba(16, 26, 53, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.oa-ansections > * + * {
+  margin-top: 32px;
+}
+
+/* ============================================================================
+   P3 選手詳細／チーム合流タブ（root `patient-team-schedule`）
+   参照: 旧 `/trainer/patients/:id?tab=team-schedule`。**値はすべて計測値**である
+   （`ref-old-patient-team-schedule{,-extra,-wrap,-page}.json`。2026-09-16 22:1x に
+   ログインが復旧したので、審査 1 回目 §3 の「画素近似」はすべて計算済みスタイルに
+   置き換えた）。旧に譲らないものは DESIGN_SYSTEM.md §10-8（裁定 J238 ＋ 人間決定 B）。
+
+   計測（1440・root 相対。`-wrap` = div / `-extra` = span）:
+   - パネル div#34        面 rgb(22,34,74) / r 0 16 16 16 / padding 24
+   - 見出しカード div#36  面 rgba(16,26,53,.75) / 枠 rgba(255,255,255,.06) / r16 / padding 20
+   - 金の縦棒 span#2      4×20 / rgb(242,193,78) / r9999（h3 の box の内側・y+2）
+   - 範囲の束 div#40      margin-top 16 / h28
+   - 端点 span#3,#4       12px/400 rgba(255,255,255,.3)・行 h16・下 4
+   - 溝 div#42            h8 / rgba(255,255,255,.1) / r9999
+   - 塗り div#43          linear-gradient(to right, rgb(217,169,60), rgb(244,204,99)) / r9999
+   - 週の束 div#44        margin-top 20（見出しカードとの間）
+   - 週カード div#45      面 rgba(255,255,255,.02) / 枠 rgba(255,255,255,.05) / r16 / カード間 8
+   - 週カードの内側 div#46 padding 12
+   - 題の前の空きスロット div#47  h0 / margin-bottom 12（旧は「現在ここ」ピルの席）
+   - 題の行 div#48        h20 / margin-bottom 8。日付 span#5 14px/**500** rgba(255,255,255,.55)
+                          ＋ `N週目` span#6 12px/400 rgba(255,255,255,.3)・gap 8・baseline
+   - 行 div#50            h18。`✦` span#7 9.52×16・12px/400 rgba(255,255,255,.4)・gap 8
+                          ＋ 名前 p#9 12px/400 rgba(255,255,255,.55)
+   - 当日カード div#71    面 rgba(242,193,78,.1) / 枠 rgba(242,193,78,.4) / r16 / padding 16。
+                          題 span#26 16px/700 rgb(247,214,121)・図像 span#28 rgb(244,204,99)・
+                          行 p#15 14px/400 rgb(255,255,255)
+   ========================================================================= */
+/* **縦の送りは gap で置く**（margin ではなく）。旧の p / h3 の `margin` は全部 `0px` で、
+   子に margin を持たせると計算済みスタイルがそこだけ参照と食い違う。
+   **gap 20 は 3 箇所**（見出しカード → 宣言カード → 節 → 注記）。旧が持つのは
+   「見出しカード → 週の束 20」（div#44 の margin-top）の 1 箇所だけで、
+   宣言カードと注記は PHYSIOS 専用なので同じ値を使い回している（審査 1 回目 §2-3） */
+.oa-ts {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- 見出しカード（h3 ＋ 金の縦棒 ＋ 日付範囲 ＋ 進捗バー）---- */
+.oa-tshead {
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--oa-radius-lg);
+  background-color: rgba(16, 26, 53, 0.75);
+}
+/* 旧 div#37 は h3 と状態語の行。状態語は置かない（J238-4）ので h3 だけが入る */
+.oa-tsheadrow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+/* 旧 h3#1 は**内容幅**（185.61）。器いっぱいに伸ばさない */
+.oa-tsh3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--oa-text);
+}
+.oa-tsmark {
+  flex-shrink: 0;
+  width: 4px;
+  height: 20px;
+  border-radius: var(--oa-radius-full);
+  background-color: var(--oa-accent-500);
+}
+
+/* ---- 日付範囲と進捗バー（旧 div#40。人間決定 2026-09-16(B) 2）----
+   端点は**スケジュールの幅**（最初の週カードの暦日 → 最後の週カードの暦日）であって、
+   左カードの復帰見込み（受傷日 → 復帰見込み）とは分母が違う（審査 1 回目 §4-2）。
+   バーが表すのは**今日の位置＝時間の経過**である */
+.oa-tsrange {
+  margin-top: 16px;
+}
+.oa-tsrangerow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.3);
+}
+.oa-tstrack {
+  height: 8px;
+  border-radius: var(--oa-radius-full);
+  background-color: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.oa-tsfill {
+  height: 8px;
+  border-radius: var(--oa-radius-full);
+  background-image: linear-gradient(to right, rgb(217, 169, 60), rgb(244, 204, 99));
+}
+
+/* ---- 器（宣言カード・空状態の 1 文）。旧の週カードと同じ面（計測値）---- */
+.oa-tscard {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--oa-radius-lg);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+.oa-tsdl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.oa-tsdrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+/* **72 の出所**: 最長の term「制限内容」4 字 × 12px ＝ 48 ＋ 余白 24（審査 1 回目 §2-7）。
+   参照に対応部品が無い寸法なので、案 小 48（4 字ちょうど）と案 別種（左カードの
+   label/value の型＝縦積み 10/500 → 14/700）の切り出しを status に添えている */
+.oa-tsdt {
+  flex-shrink: 0;
+  width: 72px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.4);
+}
+.oa-tsdd {
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+.oa-tspre {
+  white-space: pre-wrap;
+}
+/* 記録者メタ（§4-15）の `RecorderMeta` / `LocalStamp` は規範側のクラス（`text-2xs`）を持つので、
+   この面の字形に合わせる。
+   **ただしこの規則では p の高さは 32 にならない**（実測 33）。`LocalStamp` が返すのは
+   `<Num mono>`（JetBrains Mono）で、`font-size` / `line-height` を揃えても **Inter と
+   ベースライン位置が 1px ずれ、行box の和集合が 17px になる**ためである。
+   原因は書体のメトリクスであってこの規則ではない。規範側の部品の挙動なので
+   P3 では直さず記録にとどめる（審査 1 回目 §6-1 / 2 回目 §7-1） */
+.oa-tsmeta span {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.oa-tsmeta {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}
+/* 3 つの空状態の 1 文（T15・J238-8）。器は週カードの面 */
+.oa-tsstate {
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* 宣言がまだ無いとき（§5-22 の 1 文。ゴールドを置かない） */
+.oa-tsempty {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---- エピソードの節（束ねない・J238-7）---- */
+.oa-tsep {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.oa-tsephead {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--oa-text);
+}
+.oa-tsepdx {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---- 週カード ---- */
+.oa-tsweeks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.oa-tsweek {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--oa-radius-lg);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+.oa-tswin {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+/* 旧 div#47（h0・下 12）は「現在ここ」ピルの席である。**ピルは置かない**（J238-1）が、
+   席の送り 12 は旧の全カードに等しく入っているので残す */
+.oa-tswslot {
+  height: 0;
+  margin-bottom: 12px;
+}
+.oa-tswhead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+/* 行の送り 6（旧 div#56 → div#57 は 363 → 387 の 24 ピッチ・行の高さ 18） */
+.oa-tswlist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.oa-tswdate {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.oa-tswn {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.3);
+}
+/* 目安の週が無い束（J238-6）。暦日のスロットを持たない */
+.oa-tswnone {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.3);
+}
+.oa-tswrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+/* 旧の `✦`（U+2726・span 9.52×16・ink 9×9）を **inline SVG の四芒星**に置換した
+   （C4・審査 1 回目 §2-6。lucide `Sparkle` は腕が太く「＋」に読めるので不可）。
+   box は旧の span と同寸にしてあり、`margin-top` 2 は旧の span の y（行頭 +2）である */
+.oa-tswicon {
+  flex-shrink: 0;
+  width: 9.52px;
+  height: 16px;
+  margin-top: 2px;
+  /* 旧は 12px/16 の文字 span だった。図像の寸法は width / height が決めるが、
+     計算済みスタイルを参照とそろえるために行箱も同じ値にしておく */
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}
+/* 旧 p#9 の幅は**文言の幅**（238.34）。行の残り幅に伸ばさない */
+.oa-tswbody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.oa-tswname {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.oa-tswname--none {
+  color: rgba(255, 255, 255, 0.3);
+}
+.oa-tswmeta,
+.oa-tswcond {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}
+/* 逐語（§2-9 規則 5 の可逆整形のみ）。折り畳まない・切り詰めない */
+.oa-tswcond {
+  white-space: pre-line;
+}
+
+/* ---- 今日を含む週のカード（人間決定 2026-09-16(B) 1）----
+   **色差は暦の事実**（`受傷日 + 7N 日` と今日の比較）なので旧の面・枠・字形を写す。
+   **内側 padding だけは写さない**（旧は 16・他の週カードは 12）——旧の padding 差は
+   「現在ここ」ピルの行を抱えた帰結であり、ピルを置かない以上写す根拠が消える。
+   高さが他のカードと揃い、**差が色だけになる**（J238-1a）。
+   「◀ 現在ここ ▶」のピルと語、行末の「参加可」は**状態の主張**なので置かない（J238-1 / J238-5） */
+.oa-tsweek--today {
+  border-color: rgba(242, 193, 78, 0.4);
+  background-color: rgba(242, 193, 78, 0.1);
+}
+.oa-tsweek--today .oa-tswdate {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--oa-accent-300);
+}
+.oa-tsweek--today .oa-tswicon {
+  color: var(--oa-accent-400);
+}
+.oa-tsweek--today .oa-tswname {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--oa-text);
+}
+
+/* ---- 末尾の注記（J238-9）---- */
+.oa-tsnote {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}

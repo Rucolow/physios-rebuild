@@ -17,9 +17,16 @@ export async function addPlayerAction(_prev: AddPlayerState, form: FormData): Pr
     .split(/[、,，\s]+/)
     .map((a) => a.trim())
     .filter(Boolean)
-  const { error } = await adminDb()
+  const db = adminDb()
+  // チーム名から所属を決める。無ければチームを作る
+  let teamId: string | null = null
+  if (team) {
+    const { data: t } = await db.from('team').upsert({ trainer_id: trainer.id, name: team }, { onConflict: 'trainer_id,name' }).select('id').single()
+    teamId = t?.id ?? null
+  }
+  const { error } = await db
     .from('player')
-    .insert({ trainer_id: trainer.id, family_name: family, given_name: given, aliases, team: team || null })
+    .insert({ trainer_id: trainer.id, family_name: family, given_name: given, aliases, team: team || null, team_id: teamId })
   if (error) {
     console.error(error)
     return { ok: false, message: '足せませんでした。もう一度お試しください。', team }
