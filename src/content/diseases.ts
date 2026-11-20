@@ -4,6 +4,8 @@
  * 清水の監修が済むまで status は 'draft'（画面に「監修前」と出す）。
  * 清水のプロトコル（メニュー・段階）はここに書かない。DB が正。
  */
+import { MORE_GUIDES } from './diseases-more'
+
 export interface DiseaseSource {
   n: number
   text: string
@@ -105,4 +107,6 @@ UEFA のエリートクラブ傷害研究では、2001/02 から 2021/22 まで�
   keywords: ['ハムストリングス', 'ハムストリング', '肉離れ', 'ノルディック', 'hamstring'],
 }
 
-export const DISEASE_GUIDES: Record<string, DiseaseGuide> = { [hamstring.key]: hamstring }
+export const DISEASE_GUIDES: Record<string, DiseaseGuide> = Object.fromEntries(
+  [hamstring, ...MORE_GUIDES].map((g) => [g.key, g]),
+)
