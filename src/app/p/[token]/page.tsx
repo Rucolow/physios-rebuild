@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { playerByToken } from '@/lib/auth'
 import { loadPlayerDay } from '@/lib/playerDay'
+import { loadPlayerStage } from '@/lib/playerApp'
 import { PlayerHome } from '@/components/player/PlayerHome'
 
 export const dynamic = 'force-dynamic'
@@ -10,6 +11,6 @@ export default async function PlayerPage({ params, searchParams }: { params: Pro
   const { d } = await searchParams
   const player = await playerByToken(token)
   if (!player) notFound()
-  const day = await loadPlayerDay(player, d ?? null)
-  return <PlayerHome token={token} givenName={player.given_name} day={day} />
+  const [day, stage] = await Promise.all([loadPlayerDay(player, d ?? null), loadPlayerStage(player)])
+  return <PlayerHome key={day.date} token={token} day={day} stage={stage} />
 }
