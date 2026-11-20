@@ -133,12 +133,14 @@ const EVENT_DATE_TEXT = { past: 'text-navy-400', next: 'font-bold text-gold-400'
 function EventRow({ event }: { event: ScheduleEvent }) {
   const past = event.state === 'past'
   return <div className={listRow({ variant: EVENT_VARIANT[event.state] })}>
-    <Num mono className={cn('w-16 shrink-0 text-2xs', EVENT_DATE_TEXT[event.state])}>{event.date} {event.weekday}</Num>
+    <span className="flex w-14 shrink-0 flex-col">
+      <Num mono className={cn('text-2xs', EVENT_DATE_TEXT[event.state])}>{event.date} {event.weekday}</Num>
+      <Num mono className={cn('text-2xs', past ? 'text-navy-400' : 'font-bold text-white')}>{event.time}</Num>
+    </span>
     <span className="min-w-0 flex-1">
       <span className={cn('block text-sm', past ? 'text-navy-300' : 'font-bold text-white')}>{event.title}</span>
-      {event.detail && <span className="block text-2xs text-navy-400"><Num>{event.detail}</Num></span>}
+      {event.detail && <span className="block text-2xs text-navy-400">{event.detail}</span>}
     </span>
-    <Num mono className={cn('w-12 shrink-0 text-right text-2xs', past ? 'text-navy-400' : 'font-bold text-white')}>{event.time}</Num>
     {event.kind === 'match' && past && event.score
       ? <StateWord tone="none"><Num mono>{event.score.for}-{event.score.against}</Num></StateWord>
       : event.nowLabel
