@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { requireTrainer } from '@/lib/auth'
 import { adminDb } from '@/lib/supabase/server'
 import { localDate } from '@/lib/date'
+import { KARTE_COLUMN, loadKarteFields } from '@/lib/playerDetail'
 
 async function ownPlayer(trainerId: string, playerId: string) {
   const { data } = await adminDb().from('player').select('id').eq('id', playerId).eq('trainer_id', trainerId).maybeSingle()
@@ -10,33 +11,6 @@ async function ownPlayer(trainerId: string, playerId: string) {
 }
 
 export type FormState = { ok: boolean; message: string | null }
-
-/** 参加区分・制限・復帰見込みを決める。前の区分は閉じて履歴に残す */
-export async function setParticipation(_prev: FormState, form: FormData): Promise<FormState> {
-  const trainer = await requireTrainer()
-  const playerId = String(form.get('player_id') ?? '')
-  await ownPlayer(trainer.id, playerId)
-  const status = String(form.get('status') ?? '')
-  if (!['full', 'limited', 'out'].includes(status)) return { ok: false, message: '参加区分を選んでください。' }
-  const ret = String(form.get('expected_return') ?? '').trim()
-  const restriction = String(form.get('restriction') ?? '').trim()
-  const db = adminDb()
-  const now = new Date().toISOString()
-  await db.from('availability_status').update({ valid_to: now }).eq('player_id', playerId).is('valid_to', null)
-  const { error } = await db.from('availability_status').insert({
-    player_id: playerId,
-    status,
-    restriction: status === 'limited' ? restriction || null : null,
-    expected_return: status === 'full' ? null : /^\d{4}-\d{2}-\d{2}$/.test(ret) ? ret : null,
-    declared_by: trainer.id,
-  })
-  if (error) {
-    console.error(error)
-    return { ok: false, message: '保存できませんでした。もう一度お試しください。' }
-  }
-  revalidatePath(`/players/${playerId}`)
-  return { ok: true, message: null }
-}
 
 /** 要観察の付け外し */
 export async function setWatching(playerId: string, on: boolean) {
@@ -67,22 +41,24 @@ export async function addKarte(_prev: FormState, form: FormData): Promise<FormSt
   if (files.reduce((n, f) => n + f.size, 0) > 7 * 1024 * 1024) return { ok: false, message: '画像は合わせて 7MB までです。' }
   const db = adminDb()
   const { data: ep } = await db.from('injury_episode').select('id').eq('player_id', playerId).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle()
-  const { data: k, error } = await db
-    .from('karte_entry')
-    .insert({
-      player_id: playerId,
-      injury_episode_id: ep?.id ?? null,
-      written_on: s('written_on') ?? localDate(trainer.time_zone),
-      summary,
-      subjective: s('subjective'),
-      objective: s('objective'),
-      assessment: s('assessment'),
-      treatment: s('treatment'),
-      plan: s('plan'),
-      confirmed_by: trainer.id,
-    })
-    .select('id')
-    .single()
+  // 既定の五項目は列に、それ以外の項目は fields に入れる
+  const row: Record<string, unknown> = {
+    player_id: playerId,
+    injury_episode_id: ep?.id ?? null,
+    written_on: s('written_on') ?? localDate(trainer.time_zone),
+    summary,
+    confirmed_by: trainer.id,
+  }
+  const extra: Record<string, string> = {}
+  for (const label of await loadKarteFields(playerId)) {
+    const v = s(`f:${label}`)
+    if (!v) continue
+    const col = KARTE_COLUMN.get(label)
+    if (col) row[col] = v
+    else extra[label] = v
+  }
+  if (Object.keys(extra).length) row.fields = extra
+  const { data: k, error } = await db.from('karte_entry').insert(row).select('id').single()
   if (error || !k) {
     console.error(error)
     return { ok: false, message: '保存できませんでした。もう一度お試しください。' }
@@ -97,6 +73,20 @@ export async function addKarte(_prev: FormState, form: FormData): Promise<FormSt
       return { ok: false, message: 'カルテは保存しましたが、画像の一部を保存できませんでした。' }
     }
     await db.from('karte_attachment').insert({ karte_entry_id: k.id, storage_path: path, content_type: f.type, byte_size: f.size, uploaded_by: trainer.id })
+  }
+  revalidatePath(`/players/${playerId}`)
+  return { ok: true, message: null }
+}
+
+/** この選手のカルテの記入項目を決める（空なら既定の五項目に戻す） */
+export async function setKarteFields(playerId: string, labels: string[]): Promise<FormState> {
+  const trainer = await requireTrainer()
+  await ownPlayer(trainer.id, playerId)
+  const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(0, 20)
+  const { error } = await adminDb().from('player').update({ karte_fields: clean }).eq('id', playerId)
+  if (error) {
+    console.error(error)
+    return { ok: false, message: error.message.includes('karte_fields') ? '項目を保存するには、データベースの更新（0006）が必要です。' : '保存できませんでした。もう一度お試しください。' }
   }
   revalidatePath(`/players/${playerId}`)
   return { ok: true, message: null }

@@ -1,37 +1,12 @@
 'use client'
 import { useActionState, useEffect, useState, useTransition } from 'react'
-import { Eye, EyeOff, ImagePlus, PencilLine, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, Eye, EyeOff, ImagePlus, ListChecks, Plus, X } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { addKarte, setParticipation, setWatching, type FormState } from '@/app/(trainer)/players/[id]/actions'
+import { addKarte, setKarteFields, setWatching, type FormState } from '@/app/(trainer)/players/[id]/actions'
 
 const field = 'oa-kfinput w-full'
 const label = 'mb-1 block text-2xs text-navy-300'
-
-/** 参加区分・制限・復帰見込みを決める */
-export function ParticipationButton({ playerId, status, restriction, expectedReturn }: { playerId: string; status: string | null; restriction: string | null; expectedReturn: string | null }) {
-  const [open, setOpen] = useState(false)
-  const [state, action, pending] = useActionState<FormState, FormData>(setParticipation, { ok: false, message: null })
-  const [sel, setSel] = useState(status ?? 'limited')
-  useEffect(() => { if (state.ok) setOpen(false) }, [state])
-  return <Modal open={open} onOpenChange={setOpen} title="参加区分を決める" busy={pending}
-    trigger={<button type="button" className="oa-button"><PencilLine size={16} strokeWidth={2} aria-hidden="true" />参加区分</button>}>
-    <form action={action} className="space-y-4">
-      <input type="hidden" name="player_id" value={playerId} />
-      <fieldset className="grid grid-cols-3 gap-2">
-        {([['full', '完全参加'], ['limited', '制限付き'], ['out', '離脱']] as const).map(([v, l]) => <label key={v} className="oa-pill justify-center" data-active={sel === v}>
-          <input type="radio" name="status" value={v} checked={sel === v} onChange={() => setSel(v)} className="sr-only" />{l}
-        </label>)}
-      </fieldset>
-      {sel === 'limited' && <div><label className={label} htmlFor="restriction">制限（指導者に伝わります）</label>
-        <input id="restriction" name="restriction" defaultValue={restriction ?? ''} placeholder="例: 接触プレーなし" className={field} /></div>}
-      {sel !== 'full' && <div><label className={label} htmlFor="expected_return">復帰見込み</label>
-        <input id="expected_return" name="expected_return" type="date" defaultValue={expectedReturn ?? ''} className={field} /></div>}
-      {state.message && <p role="alert" className="text-sm text-red-400">{state.message}</p>}
-      <div className="flex justify-end"><Button type="submit" variant="primary" disabled={pending}>{pending ? '保存しています…' : '保存する'}</Button></div>
-    </form>
-  </Modal>
-}
 
 export function WatchButton({ playerId, watching }: { playerId: string; watching: boolean }) {
   const [on, setOn] = useState(watching)
@@ -44,7 +19,7 @@ export function WatchButton({ playerId, watching }: { playerId: string; watching
 }
 
 /** カルテを手で書く。画像を添えられる */
-export function KarteButton({ playerId, today }: { playerId: string; today: string }) {
+export function KarteButton({ playerId, today, fields }: { playerId: string; today: string; fields: string[] }) {
   const [open, setOpen] = useState(false)
   const [state, action, pending] = useActionState<FormState, FormData>(addKarte, { ok: false, message: null })
   const [names, setNames] = useState<string[]>([])
@@ -57,8 +32,8 @@ export function KarteButton({ playerId, today }: { playerId: string; today: stri
         <div><label className={label} htmlFor="summary">要点</label><input id="summary" name="summary" required className={field} /></div>
         <div><label className={label} htmlFor="written_on">日付</label><input id="written_on" name="written_on" type="date" defaultValue={today} className={field} /></div>
       </div>
-      {([['subjective', '訴え'], ['objective', '所見'], ['assessment', '評価'], ['treatment', '治療'], ['plan', '次の予定']] as const).map(([n, l]) =>
-        <div key={n}><label className={label} htmlFor={n}>{l}</label><textarea id={n} name={n} rows={2} className={field} /></div>)}
+      {fields.map((l, i) =>
+        <div key={l}><label className={label} htmlFor={`kf${i}`}>{l}</label><textarea id={`kf${i}`} name={`f:${l}`} rows={2} className={field} /></div>)}
       <div>
         <label className="oa-button cursor-pointer">
           <ImagePlus size={16} strokeWidth={2} aria-hidden="true" />画像を添える
@@ -70,5 +45,42 @@ export function KarteButton({ playerId, today }: { playerId: string; today: stri
       {state.message && <p role="alert" className="text-sm text-red-400">{state.message}</p>}
       <div className="flex justify-end"><Button type="submit" variant="primary" disabled={pending}>{pending ? '保存しています…' : '保存する'}</Button></div>
     </form>
+  </Modal>
+}
+
+/** この選手のカルテの記入項目を足す・外す・並べ替える */
+export function KarteFieldsButton({ playerId, fields }: { playerId: string; fields: string[] }) {
+  const [open, setOpen] = useState(false)
+  const [list, setList] = useState(fields)
+  const [draft, setDraft] = useState('')
+  const [msg, setMsg] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+  useEffect(() => { if (open) { setList(fields); setDraft(''); setMsg(null) } }, [open, fields])
+  const move = (i: number, d: number) => setList((l) => { const n = [...l]; const j = i + d; if (j < 0 || j >= n.length) return l; [n[i], n[j]] = [n[j], n[i]]; return n })
+  const add = () => { const v = draft.trim(); if (v && !list.includes(v)) setList([...list, v]); setDraft('') }
+  return <Modal open={open} onOpenChange={setOpen} title="カルテの項目" busy={pending}
+    trigger={<button type="button" className="oa-button"><ListChecks size={16} strokeWidth={2} aria-hidden="true" />項目</button>}
+    footer={<>
+      <Button variant="ghost" disabled={pending} onClick={() => setList(['訴え', '所見', '評価', '治療', '次の予定'])}>既定に戻す</Button>
+      <Button variant="primary" disabled={pending || list.length === 0} onClick={() => start(async () => {
+        const r = await setKarteFields(playerId, list)
+        if (r.ok) setOpen(false); else setMsg(r.message)
+      })}>保存する</Button>
+    </>}>
+    <div className="space-y-3">
+      <ul className="overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
+        {list.map((l, i) => <li key={l} className="flex items-center gap-1 px-3 py-2">
+          <span className="min-w-0 flex-1 text-sm text-white">{l}</span>
+          <button type="button" aria-label={`${l}を上へ`} disabled={i === 0} onClick={() => move(i, -1)} className="inline-flex h-9 w-9 items-center justify-center rounded-field text-navy-300 hover:bg-layer-10 disabled:opacity-30"><ArrowUp size={16} aria-hidden="true" /></button>
+          <button type="button" aria-label={`${l}を下へ`} disabled={i === list.length - 1} onClick={() => move(i, 1)} className="inline-flex h-9 w-9 items-center justify-center rounded-field text-navy-300 hover:bg-layer-10 disabled:opacity-30"><ArrowDown size={16} aria-hidden="true" /></button>
+          <button type="button" aria-label={`${l}を外す`} onClick={() => setList(list.filter((x) => x !== l))} className="inline-flex h-9 w-9 items-center justify-center rounded-field text-navy-300 hover:bg-layer-10"><X size={16} aria-hidden="true" /></button>
+        </li>)}
+      </ul>
+      <div className="flex gap-2">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} placeholder="例: 可動域" aria-label="足す項目" className={field} />
+        <Button variant="secondary" onClick={add} disabled={!draft.trim()}>足す</Button>
+      </div>
+      {msg && <p role="alert" className="text-sm text-red-400">{msg}</p>}
+    </div>
   </Modal>
 }

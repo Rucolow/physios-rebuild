@@ -1,6 +1,7 @@
 import 'server-only'
 import { adminDb } from '@/lib/supabase/server'
-import { addDays, daysBetween, localDate, weekSince } from '@/lib/date'
+import { daysBetween, localDate, weekSince } from '@/lib/date'
+import { loadRejoin } from '@/lib/rejoin'
 
 export interface PlayerStage {
   today: string
@@ -9,7 +10,7 @@ export interface PlayerStage {
   ret: null | { days: number; percent: number }
   participation: 'full' | 'limited' | 'out' | null
   stage: null | { index: number; total: number; name: string; next: string | null }
-  condition: { pain: number | null; fatigue: number | null }
+  condition: { pain: number | null; fatigue: number | null; comment: string | null }
 }
 
 async function tzOf(trainerId: string) {
@@ -33,10 +34,10 @@ async function activeEpisode(playerId: string) {
 export async function loadPlayerStage(player: { id: string; trainer_id: string }): Promise<PlayerStage> {
   const db = adminDb()
   const today = localDate(await tzOf(player.trainer_id))
-  const [ep, { data: st }, { data: cond }] = await Promise.all([
+  const [ep, rejoin, { data: cond }] = await Promise.all([
     activeEpisode(player.id),
-    db.from('availability_status').select('status, expected_return').eq('player_id', player.id).is('valid_to', null).maybeSingle(),
-    db.from('condition_report').select('pain_score, fatigue').eq('player_id', player.id).eq('reported_on', today).maybeSingle(),
+    loadRejoin([player.id], today),
+    db.from('condition_report').select('pain_score, fatigue, comment').eq('player_id', player.id).eq('reported_on', today).maybeSingle(),
   ])
   let stage: PlayerStage['stage'] = null
   if (ep?.protocol_id) {
@@ -48,10 +49,11 @@ export async function loadPlayerStage(player: { id: string; trainer_id: string }
     if (rows && i >= 0) stage = { index: i + 1, total: rows.length, name: rows[i].period_raw, next: rows[i + 1]?.period_raw ?? null }
   }
   let ret: PlayerStage['ret'] = null
-  if (ep && st?.expected_return) {
-    const span = Math.max(1, daysBetween(ep.injured_on, st.expected_return))
+  const r = rejoin.get(player.id)
+  if (ep && r?.fullOn) {
+    const span = Math.max(1, daysBetween(ep.injured_on, r.fullOn))
     ret = {
-      days: daysBetween(today, st.expected_return),
+      days: daysBetween(today, r.fullOn),
       percent: Math.round(Math.min(1, Math.max(0, daysBetween(ep.injured_on, today) / span)) * 100),
     }
   }
@@ -59,35 +61,8 @@ export async function loadPlayerStage(player: { id: string; trainer_id: string }
     today,
     episode: ep ? { label: ep.label, week: weekSince(ep.injured_on, today) } : null,
     ret,
-    participation: (st?.status as PlayerStage['participation']) ?? null,
+    participation: r ? r.status : 'full',
     stage,
-    condition: { pain: cond?.pain_score ?? null, fatigue: cond?.fatigue ?? null },
+    condition: { pain: cond?.pain_score ?? null, fatigue: cond?.fatigue ?? null, comment: cond?.comment ?? null },
   }
-}
-
-/** 経過: 直近 7 日の痛み・疲労・実施と、これまでの段階 */
-export async function loadPlayerProgress(player: { id: string; trainer_id: string }) {
-  const db = adminDb()
-  const today = localDate(await tzOf(player.trainer_id))
-  const from = addDays(today, -6)
-  const ep = await activeEpisode(player.id)
-  const [{ data: cond }, { data: rx }, { data: pos }] = await Promise.all([
-    db.from('condition_report').select('reported_on, pain_score, fatigue').eq('player_id', player.id).gte('reported_on', from),
-    db.from('prescription').select('target_on, is_rest_day, items:prescription_item(done_at)').eq('player_id', player.id).gte('target_on', from).lte('target_on', today),
-    ep ? db.from('menu_position').select('anchor_on, set_at, row:menu_row_id(row_index, period_raw)').eq('injury_episode_id', ep.id).order('set_at') : Promise.resolve({ data: [] as never[] }),
-  ])
-  const days = Array.from({ length: 7 }, (_, i) => addDays(from, i)).map((date) => {
-    const c = (cond ?? []).find((x) => x.reported_on === date)
-    const items = (rx ?? []).filter((r) => r.target_on === date && !r.is_rest_day).flatMap((r) => r.items as { done_at: string | null }[])
-    return { date, pain: c?.pain_score ?? null, fatigue: c?.fatigue ?? null, total: items.length, done: items.filter((i) => i.done_at).length }
-  })
-  // 同じ時期を何度指定しても 1 行にする（指定し直しは履歴として出さない）
-  const stages: { from: string; name: string }[] = []
-  for (const p of pos ?? []) {
-    const row = (p as { row: unknown }).row as { period_raw: string } | null
-    if (!row) continue
-    if (stages.at(-1)?.name === row.period_raw) continue
-    stages.push({ from: (p as { anchor_on: string }).anchor_on, name: row.period_raw })
-  }
-  return { today, days, stages }
 }

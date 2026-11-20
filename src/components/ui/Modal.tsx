@@ -26,10 +26,10 @@ const content = cva('glass flex max-h-sheet flex-col overflow-hidden border bord
   placement: {
     center: 'fixed left-1/2 top-1/2 z-modal w-modal -translate-x-1/2 -translate-y-1/2 rounded-sheet data-[state=open]:animate-scale-in',
     sheet: 'fixed inset-x-0 bottom-0 z-modal rounded-t-sheet border-t pb-safe data-[state=open]:animate-slide-up',
-  }, width: { form: 'max-w-form', detail: 'max-w-detail' },
+  }, width: { form: 'max-w-form', detail: 'max-w-detail', read: 'max-w-read' },
 }, defaultVariants: { placement: 'center', width: 'form' } })
 export function Modal({ open, onOpenChange, trigger, title, children, footer, placement = 'center', width = 'form', busy = false, busyLabel = '保存しています…', closeLabel = '閉じる' }: {
-  open?: boolean; onOpenChange?: (open: boolean) => void; trigger?: ReactNode; title: ReactNode; children: ReactNode; footer?: ReactNode; placement?: 'center' | 'sheet'; width?: 'form' | 'detail'
+  open?: boolean; onOpenChange?: (open: boolean) => void; trigger?: ReactNode; title: ReactNode; children: ReactNode; footer?: ReactNode; placement?: 'center' | 'sheet'; width?: 'form' | 'detail' | 'read'
   /** 書き込み中。閉鎖を抑止し、進行文を出す（§4-10・J55） */
   busy?: boolean
   /** 進行文。一次ボタンの進行形と同じ文言にする（「追加しています…」等） */

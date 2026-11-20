@@ -1,52 +1,39 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { loadBoard, PART } from '@/lib/coach'
-import { localTime } from '@/lib/date'
-import { cn } from '@/lib/cn'
+import { teamByCoachToken } from '@/lib/coach'
+import { addDays, localDate } from '@/lib/date'
+import { loadTeamBoard, mdw } from '@/lib/teamBoard'
 import { Num } from '@/components/ui/Num'
-import { SIGNAL } from '@/lib/design/signal'
+import { TeamBoardView, type BoardView } from '@/components/team/TeamBoardView'
 
 export const dynamic = 'force-dynamic'
 
-
-export default async function Board({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params
-  const b = await loadBoard(token)
-  if (!b) notFound()
-  const count = (s: string | null) => b.rows.filter((r) => r.status === s).length
-  const metrics = [
-    { label: '未設定', value: count(null), tone: 'text-white' },
-    { label: '離脱中', value: count('out'), tone: SIGNAL.act.text },
-    { label: '制限付き', value: count('limited'), tone: SIGNAL.watch.text },
-    { label: '完全参加', value: count('full'), tone: 'text-white' },
-  ]
+/** 指導者の画面。トレーナーのチーム画面の「予定と合流」と同じものを、ログインなしで見せる */
+export default async function Board({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ view?: string; ym?: string; day?: string }> }) {
+  const [{ token }, q] = await Promise.all([params, searchParams])
+  const team = await teamByCoachToken(token)
+  if (!team) notFound()
+  const today = localDate(team.tz)
+  const view: BoardView = q.view === 'calendar' ? 'calendar' : 'timeline'
+  const ym = /^\d{4}-\d{2}$/.test(q.ym ?? '') ? q.ym! : today.slice(0, 7)
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? '') ? q.day! : null
+  const range = view === 'calendar' ? { from: addDays(`${ym}-01`, -7), to: addDays(`${ym}-01`, 42) } : { from: today, to: addDays(today, 56) }
+  const board = await loadTeamBoard(team.id, team.tz, range)
+  if (!board) notFound()
+  const href = (p: { view?: BoardView; ym?: string; day?: string }) => {
+    const s = new URLSearchParams()
+    if (p.view === 'calendar') s.set('view', 'calendar')
+    if (p.ym) s.set('ym', p.ym)
+    if (p.day) s.set('day', p.day)
+    const qs = s.toString()
+    return qs ? `/c/${token}?${qs}` : `/c/${token}`
+  }
   return <div lang="ja" className="min-h-screen shell-bg text-navy-100">
-    <main className="mx-auto max-w-read px-5 pb-16 pt-safe">
-      <div className="flex items-start justify-between gap-4 pt-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white">本日の参加状況</h1>
-          <p className="mt-1 text-sm text-navy-300">{b.team.name}</p>
-        </div>
-        <Num mono className="mt-2 shrink-0 text-2xs text-navy-400">{localTime(b.tz, new Date())} 更新</Num>
-      </div>
-      <div className="mt-6 flex items-stretch">
-        {metrics.map((m, i) => <div key={m.label} className={cn('px-4', i === 0 ? 'pl-0' : 'border-l border-layer-5')}>
-          <p className="text-2xs text-navy-400">{m.label}</p>
-          <p className={cn('text-xl font-bold', m.value > 0 ? m.tone : 'text-white')}><Num mono>{m.value}</Num><span className="text-2xs font-normal text-navy-400"> 名</span></p>
-        </div>)}
-      </div>
-      {b.rows.length === 0
-        ? <p className="mt-8 text-sm text-navy-400">このチームの選手はまだ登録されていません。</p>
-        : <div className="glass mt-8 overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
-            {b.rows.map((r) => <Link key={r.id} href={`/c/${token}/${r.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-layer-5">
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-white">{r.name}</span>
-                {r.restriction && <span className="block text-2xs text-navy-400">{r.restriction}</span>}
-              </span>
-              <span className={cn('shrink-0 text-2xs font-bold', r.status ? PART[r.status].tone : 'text-navy-400')}>{r.status ? PART[r.status].word : '未設定'}</span>
-            </Link>)}
-          </div>}
-      <p className="mt-4 text-2xs text-navy-400">選手名を選ぶと合流の見通しが開きます。詳しい状態はトレーナーまで。</p>
+    <main className="mx-auto max-w-detail space-y-6 px-4 pb-16 pt-safe md:px-6">
+      <header className="pt-6">
+        <h1 className="text-3xl font-bold text-white">{board.team.name}</h1>
+        {board.nextMatch && <p className="mt-2 text-sm text-navy-300">次の試合 <Num className="font-bold text-white">{mdw(board.nextMatch.date)}</Num> {board.nextMatch.title} ・ あと <Num className="font-bold text-white">{board.nextMatch.daysUntil}</Num> 日</p>}
+      </header>
+      <TeamBoardView board={board} view={view} ym={ym} day={day} href={href} />
     </main>
   </div>
 }

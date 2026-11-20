@@ -6,11 +6,11 @@ import { PlayerHome } from '@/components/player/PlayerHome'
 
 export const dynamic = 'force-dynamic'
 
-export default async function PlayerPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ d?: string }> }) {
+/** 選手の画面は一枚だけ。今の状態・今日のメニュー・今日の報告 */
+export default async function PlayerPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const { d } = await searchParams
   const player = await playerByToken(token)
   if (!player) notFound()
-  const [day, stage] = await Promise.all([loadPlayerDay(player, d ?? null), loadPlayerStage(player)])
-  return <PlayerHome key={day.date} token={token} day={day} stage={stage} />
+  const [day, stage] = await Promise.all([loadPlayerDay(player, null), loadPlayerStage(player)])
+  return <PlayerHome token={token} name={player.given_name} day={day} stage={stage} />
 }

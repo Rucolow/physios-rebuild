@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/supabase/server'
 import { addDays, daysBetween, localDate, weekSince } from '@/lib/date'
 import { personName } from '@/lib/format/name'
 import { prescribe } from '@/lib/prescribe'
+import { dayFocusLabel } from '@/lib/dayFocus'
 import { ITEMS_SELECT, toItems, type PlayerDayItem } from '@/lib/playerDay'
 import { playerStates } from '@/lib/team'
 import type { Trainer } from '@/lib/auth'
@@ -15,6 +16,8 @@ export interface WeekDay {
   period: string | null
   dayGroup: 'A' | 'B' | null
   rest: boolean
+  /** 今日だけ。その日の中心（「下半身メイン」など） */
+  focus: string | null
   items: PlayerDayItem[]
 }
 
@@ -24,6 +27,23 @@ export interface KarteView {
   summary: string
   parts: [string, string][]
   images: { id: string; url: string }[]
+}
+
+/** カルテの既定の項目と、それを入れる列 */
+export const KARTE_DEFAULT: [string, 'subjective' | 'objective' | 'assessment' | 'treatment' | 'plan'][] = [
+  ['訴え', 'subjective'],
+  ['所見', 'objective'],
+  ['評価', 'assessment'],
+  ['治療', 'treatment'],
+  ['次の予定', 'plan'],
+]
+export const KARTE_COLUMN = new Map(KARTE_DEFAULT)
+
+/** 選手ごとのカルテの項目（0006 の適用前や未設定なら既定の五項目） */
+export async function loadKarteFields(playerId: string): Promise<string[]> {
+  const { data, error } = await adminDb().from('player').select('karte_fields').eq('id', playerId).maybeSingle()
+  const f = !error ? ((data as { karte_fields?: string[] } | null)?.karte_fields ?? []) : []
+  return f.length ? f : KARTE_DEFAULT.map(([l]) => l)
 }
 
 export async function loadPlayerHead(trainer: Trainer, id: string) {
@@ -75,52 +95,48 @@ export async function loadWeek(head: PlayerHead): Promise<{ from: string; to: st
     .lte('target_on', to)
     .order('target_on')
   const label = new Map(head.active.map((e) => [e.id, e.label]))
-  return {
-    from,
-    to,
-    days: (rx ?? []).map((r) => ({
-      date: r.target_on,
-      episodeLabel: label.get(r.injury_episode_id) ?? '',
-      period: (r.row as unknown as { period_raw: string } | null)?.period_raw ?? null,
-      dayGroup: (r.day_group as 'A' | 'B' | null) ?? null,
-      rest: r.is_rest_day,
-      items: toItems(r.items),
-    })),
-  }
+  const proto = new Map(head.active.map((e) => [e.id, e.protocolId]))
+  const days = await Promise.all((rx ?? []).map(async (r) => ({
+    date: r.target_on,
+    episodeLabel: label.get(r.injury_episode_id) ?? '',
+    period: (r.row as unknown as { period_raw: string } | null)?.period_raw ?? null,
+    dayGroup: (r.day_group as 'A' | 'B' | null) ?? null,
+    rest: r.is_rest_day,
+    focus: r.target_on === head.today && !r.is_rest_day ? await dayFocusLabel(proto.get(r.injury_episode_id) ?? null, r.day_group) : null,
+    items: toItems(r.items),
+  })))
+  return { from, to, days }
 }
 
 export async function loadKarte(playerId: string): Promise<KarteView[]> {
   const db = adminDb()
-  const { data: kartes } = await db
-    .from('karte_entry')
-    .select('id, written_on, summary, subjective, objective, assessment, treatment, plan, att:karte_attachment(id, storage_path, created_at)')
-    .eq('player_id', playerId)
-    .order('written_on', { ascending: false })
-    .order('confirmed_at', { ascending: false })
-    .limit(50)
-  const paths = (kartes ?? []).flatMap((k) => (k.att as { storage_path: string }[]).map((a) => a.storage_path))
+  const cols = 'id, written_on, summary, subjective, objective, assessment, treatment, plan, att:karte_attachment(id, storage_path, created_at)'
+  const q = (c: string) => db.from('karte_entry').select(c).eq('player_id', playerId).order('written_on', { ascending: false }).order('confirmed_at', { ascending: false }).limit(500)
+  let res = await q(`${cols}, fields`)
+  if (res.error) res = await q(cols)
+  type Row = { id: string; written_on: string; summary: string; subjective: string | null; objective: string | null; assessment: string | null; treatment: string | null; plan: string | null; fields?: Record<string, string> | null; att: { id: string; storage_path: string }[] }
+  const kartes = (res.data ?? []) as unknown as Row[]
+  const order = await loadKarteFields(playerId)
+  const paths = kartes.flatMap((k) => k.att.map((a) => a.storage_path))
   const signed = new Map<string, string>()
   if (paths.length) {
     const { data } = await db.storage.from('karte').createSignedUrls(paths, 60 * 60)
     for (const s of data ?? []) if (s.signedUrl && s.path) signed.set(s.path, s.signedUrl)
   }
-  return (kartes ?? []).map((k) => ({
-    id: k.id,
-    writtenOn: k.written_on,
-    summary: k.summary,
-    parts: (
-      [
-        ['訴え', k.subjective],
-        ['所見', k.objective],
-        ['評価', k.assessment],
-        ['治療', k.treatment],
-        ['次の予定', k.plan],
-      ] as [string, string | null][]
-    ).filter((x): x is [string, string] => !!x[1]),
-    images: (k.att as { id: string; storage_path: string }[])
-      .map((a) => ({ id: a.id, url: signed.get(a.storage_path) ?? '' }))
-      .filter((a) => a.url),
-  }))
+  return kartes.map((k) => {
+    const values = new Map<string, string>()
+    for (const [l, c] of KARTE_DEFAULT) if (k[c]) values.set(l, k[c]!)
+    for (const [l, v] of Object.entries(k.fields ?? {})) if (v) values.set(l, v)
+    // 選手の項目の順に並べ、項目から外したものも記録としては残して後ろに出す
+    const labels = [...order.filter((l) => values.has(l)), ...[...values.keys()].filter((l) => !order.includes(l))]
+    return {
+      id: k.id,
+      writtenOn: k.written_on,
+      summary: k.summary,
+      parts: labels.map((l) => [l, values.get(l)!] as [string, string]),
+      images: k.att.map((a) => ({ id: a.id, url: signed.get(a.storage_path) ?? '' })).filter((a) => a.url),
+    }
+  })
 }
 
 /** 選手のチームのこれからの予定（合流の計画を立てる材料） */
@@ -140,27 +156,54 @@ export async function loadPlayerTeamEvents(head: PlayerHead, tz: string) {
     .map((e) => ({ ...e, inDays: daysBetween(head.today, e.date) }))
 }
 
-/** 直近 4 週の実施と調子 */
-export async function loadReport(head: PlayerHead) {
+export type ReportScale = 'week' | 'month' | 'year'
+
+export interface ReportBucket {
+  key: string
+  label: string
+  total: number
+  done: number
+  pain: number | null
+  fatigue: number | null
+}
+
+/** 実施と調子。週（7 日）・月（30 日）は日ごと、年は月ごとにまとめる */
+export async function loadReport(head: PlayerHead, scale: ReportScale) {
   const db = adminDb()
-  const from = addDays(head.today, -27)
-  const ids = head.active.map((e) => e.id).concat(['00000000-0000-0000-0000-000000000000'])
+  const from = scale === 'week' ? addDays(head.today, -6) : scale === 'month' ? addDays(head.today, -29) : (() => { const d = new Date(`${head.today.slice(0, 7)}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() - 11); return d.toISOString().slice(0, 10) })()
   const [{ data: rx }, { data: cond }] = await Promise.all([
-    db.from('prescription').select('target_on, is_rest_day, items:prescription_item(done_at)').in('injury_episode_id', ids).gte('target_on', from).lte('target_on', head.today),
+    db.from('prescription').select('target_on, is_rest_day, items:prescription_item(done_at)').eq('player_id', head.id).gte('target_on', from).lte('target_on', head.today),
     db.from('condition_report').select('reported_on, pain_score, fatigue, comment').eq('player_id', head.id).gte('reported_on', from).order('reported_on'),
   ])
-  const days = Array.from({ length: 28 }, (_, i) => addDays(from, i)).map((date) => {
-    const r = (rx ?? []).filter((x) => x.target_on === date && !x.is_rest_day)
+  const keyOf = (d: string) => (scale === 'year' ? d.slice(0, 7) : d)
+  const keys: string[] = []
+  if (scale === 'year') {
+    for (let d = from; d <= head.today; d = addDays(`${d.slice(0, 7)}-01`, 32).slice(0, 7) + '-01') keys.push(d.slice(0, 7))
+  } else {
+    for (let d = from; d <= head.today; d = addDays(d, 1)) keys.push(d)
+  }
+  const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null)
+  const buckets: ReportBucket[] = keys.map((k) => {
+    // 実施は昨日まで（今日はまだ途中）
+    const r = (rx ?? []).filter((x) => keyOf(x.target_on) === k && !x.is_rest_day && x.target_on < head.today)
     const items = r.flatMap((x) => x.items as { done_at: string | null }[])
-    const c = (cond ?? []).find((x) => x.reported_on === date)
-    return { date, total: items.length, done: items.filter((i) => i.done_at).length, pain: c?.pain_score ?? null, fatigue: c?.fatigue ?? null, comment: c?.comment ?? null }
+    const c = (cond ?? []).filter((x) => keyOf(x.reported_on) === k)
+    return {
+      key: k,
+      label: scale === 'year' ? `${Number(k.slice(5))}月` : `${Number(k.slice(5, 7))}/${Number(k.slice(8))}`,
+      total: items.length,
+      done: items.filter((i) => i.done_at).length,
+      pain: avg(c.map((x) => x.pain_score).filter((v): v is number => v !== null)),
+      fatigue: avg(c.map((x) => x.fatigue).filter((v): v is number => v !== null)),
+    }
   })
-  // 実施率は昨日まで（今日はまだ途中）
-  const withMenu = days.filter((d) => d.total > 0 && d.date < head.today)
+  const total = buckets.reduce((s, b) => s + b.total, 0)
   return {
-    days,
-    rate: withMenu.length ? Math.round((withMenu.reduce((s, d) => s + d.done, 0) / withMenu.reduce((s, d) => s + d.total, 0)) * 100) : null,
-    comments: days.filter((d) => d.comment),
+    scale,
+    buckets,
+    rate: total ? Math.round((buckets.reduce((s, b) => s + b.done, 0) / total) * 100) : null,
+    reported: (cond ?? []).filter((c) => c.pain_score !== null || c.fatigue !== null).length,
+    comments: (cond ?? []).filter((c) => c.comment).map((c) => ({ date: c.reported_on, comment: c.comment as string })),
   }
 }
 

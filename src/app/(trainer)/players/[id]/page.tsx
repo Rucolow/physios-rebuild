@@ -4,12 +4,14 @@ import { headers } from 'next/headers'
 import { CalendarDays, ChevronLeft, Smartphone } from 'lucide-react'
 import { requireTrainer } from '@/lib/auth'
 import { daysBetween, jaDate } from '@/lib/date'
-import { loadKarte, loadPlayerHead, loadPlayerTeamEvents, loadReport, loadTeamSteps, loadWeek, type PlayerHead } from '@/lib/playerDetail'
+import { loadKarte, loadKarteFields, loadPlayerHead, loadPlayerTeamEvents, loadReport, loadWeek, type PlayerHead, type ReportScale } from '@/lib/playerDetail'
+import { loadRejoin } from '@/lib/rejoin'
 import { cn } from '@/lib/cn'
 import { Num } from '@/components/ui/Num'
 import { CopyLink } from '@/components/trainer/CopyLink'
 import { WeekMenu } from '@/components/player-detail/WeekMenu'
-import { KarteButton, ParticipationButton, WatchButton } from '@/components/player-detail/PlayerTools'
+import { KarteButton, KarteFieldsButton, WatchButton } from '@/components/player-detail/PlayerTools'
+import { KarteDateNav } from '@/components/player-detail/KarteDateNav'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,15 +34,15 @@ function slashDate(iso: string) {
   return `${Number(m)}/${Number(d)}/${y}`
 }
 
-export default async function PlayerDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
-  const [{ id }, { tab: tabParam }] = await Promise.all([params, searchParams])
+export default async function PlayerDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; d?: string; scale?: string }> }) {
+  const [{ id }, { tab: tabParam, d, scale }] = await Promise.all([params, searchParams])
   const tab: Tab = TABS.find((t) => t.id === tabParam)?.id ?? 'training'
   const trainer = await requireTrainer()
   const head = await loadPlayerHead(trainer, id)
   if (!head) notFound()
   const h = await headers()
   const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`
-  const part = head.participation ? PART[head.participation] : { word: '未設定', tone: 'oa-part--unset' }
+  const part = head.participation ? PART[head.participation] : { word: '合流の目安なし', tone: 'oa-part--unset' }
   const remaining = head.expectedReturn ? daysBetween(head.today, head.expectedReturn) : null
   const meta = [head.team, ...head.active.map((e) => `${e.label} ・ ${e.week}週目`), head.fictional ? '架空の選手' : null].filter(Boolean)
 
@@ -58,17 +60,16 @@ export default async function PlayerDetail({ params, searchParams }: { params: P
                     <div className="oa-ping" aria-hidden="true"><div className="oa-ping-dot">{head.participation === 'out' && <div className="oa-ping-ring" />}</div></div>
                     <div>
                       <p className="oa-lstatusword">{part.word}</p>
-                      {remaining !== null && <p className="oa-lstatusnote">{remaining < 0 ? <>復帰見込みを<Num>{-remaining}</Num>日超過</> : <>復帰まで <Num>{remaining}</Num> 日</>}</p>}
+                      {remaining !== null && <p className="oa-lstatusnote">{remaining < 0 ? <>合流見込みを<Num>{-remaining}</Num>日超過</> : <>全合流まで <Num>{remaining}</Num> 日</>}</p>}
                     </div>
                   </div>
                 </div>
                 <p className="oa-lmeta">{meta.length ? meta.join(' · ') : '進行中の怪我なし'}</p>
-                {head.restriction && <p className="oa-lmeta">制限: {head.restriction}</p>}
+                {head.restriction && <p className="oa-lmeta">参加できる: {head.restriction}</p>}
               </div>
               <div className="oa-lgap" />
               {head.expectedReturn && <ReturnCard head={head} />}
               <div className="flex flex-wrap gap-2 px-5 pb-5">
-                <ParticipationButton playerId={head.id} status={head.participation} restriction={head.restriction} expectedReturn={head.expectedReturn} />
                 <WatchButton playerId={head.id} watching={head.watching} />
               </div>
             </div>
@@ -88,9 +89,9 @@ export default async function PlayerDetail({ params, searchParams }: { params: P
             </div>
             <div className="oa-panel">
               {tab === 'training' && <Training head={head} />}
-              {tab === 'chart' && <Chart head={head} />}
+              {tab === 'chart' && <Chart head={head} date={d} />}
               {tab === 'team' && <Team head={head} tz={trainer.time_zone} />}
-              {tab === 'report' && <Report head={head} />}
+              {tab === 'report' && <Report head={head} scale={scale === 'month' || scale === 'year' ? scale : 'week'} />}
             </div>
           </div>
         </div>
@@ -110,7 +111,7 @@ function ReturnCard({ head }: { head: PlayerHead }) {
       <div className="oa-retrow">
         <div className="oa-retleft">
           <div className="oa-reticon"><CalendarDays size={16} strokeWidth={2} aria-hidden="true" /></div>
-          <div><p className="oa-retlabel">復帰見込み</p><p className="oa-retdate"><Num>{slashDate(target)}</Num></p></div>
+          <div><p className="oa-retlabel">全て合流できる見込み</p><p className="oa-retdate"><Num>{slashDate(target)}</Num></p></div>
         </div>
         <span className="oa-retpill">{over ? <><Num>{-remaining}</Num> 日超過</> : <>あと <Num>{remaining}</Num> 日</>}</span>
       </div>
@@ -120,9 +121,9 @@ function ReturnCard({ head }: { head: PlayerHead }) {
 }
 
 function PanelTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
-  return <div className="mb-4 flex items-center gap-3">
+  return <div className="mb-4 flex flex-wrap items-center gap-3">
     <span className="h-6 w-1 rounded-pill bg-gold-500" aria-hidden="true" />
-    <h2 className="flex-1 text-[20px] font-bold text-white">{children}</h2>
+    <h2 className="flex-1 whitespace-nowrap text-[20px] font-bold text-white">{children}</h2>
     {action}
   </div>
 }
@@ -138,18 +139,21 @@ async function Training({ head }: { head: PlayerHead }) {
   </>
 }
 
-async function Chart({ head }: { head: PlayerHead }) {
-  const kartes = await loadKarte(head.id)
+async function Chart({ head, date }: { head: PlayerHead; date?: string }) {
+  const [kartes, fields] = await Promise.all([loadKarte(head.id), loadKarteFields(head.id)])
+  const dates = [...new Set(kartes.map((k) => k.writtenOn))]
+  const sel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : dates[0] ?? head.today
+  const shown = kartes.filter((k) => k.writtenOn === sel)
   return <>
-    <PanelTitle action={<KarteButton playerId={head.id} today={head.today} />}>カルテ</PanelTitle>
-    {kartes.length === 0 && <p className="text-sm text-navy-400">まだ記録はありません。音声メモで話すか、ここから書けます。</p>}
-    <div className="space-y-3">
-      {kartes.map((k) => <article key={k.id} className="rounded-card border border-layer-10 bg-layer-5 px-4 py-4">
-        <p className="text-2xs text-navy-400"><Num>{jaDate(k.writtenOn).md}</Num></p>
-        <p className="mt-1 text-sm font-bold text-white">{k.summary}</p>
-        {k.parts.length > 0 && <dl className="mt-2 space-y-1">
+    <PanelTitle action={<div className="flex gap-2"><KarteFieldsButton playerId={head.id} fields={fields} /><KarteButton playerId={head.id} today={sel} fields={fields} /></div>}>カルテ</PanelTitle>
+    <KarteDateNav base={`/players/${head.id}?tab=chart`} date={sel} marked={dates} today={head.today} />
+    <div className="mt-4 space-y-3">
+      {shown.length === 0 && <p className="px-1 text-sm text-navy-400">この日の記録はありません。</p>}
+      {shown.map((k) => <article key={k.id} className="rounded-card border border-layer-10 bg-layer-5 px-4 py-4">
+        <p className="text-base font-bold text-white">{k.summary}</p>
+        {k.parts.length > 0 && <dl className="mt-3 space-y-2">
           {k.parts.map(([l, v]) => <div key={l} className="flex gap-3 text-sm">
-            <dt className="w-16 shrink-0 pt-0.5 text-2xs text-navy-400">{l}</dt>
+            <dt className="w-20 shrink-0 pt-0.5 text-2xs text-navy-400">{l}</dt>
             <dd className="min-w-0 flex-1 whitespace-pre-line text-navy-200">{v}</dd>
           </div>)}
         </dl>}
@@ -164,73 +168,84 @@ async function Chart({ head }: { head: PlayerHead }) {
   </>
 }
 
+const WDS = ['日', '月', '火', '水', '木', '金', '土']
+const mdw = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8))}（${WDS[new Date(`${iso}T00:00:00Z`).getUTCDay()]}）`
+
 async function Team({ head, tz }: { head: PlayerHead; tz: string }) {
-  const [events, plans] = await Promise.all([loadPlayerTeamEvents(head, tz), loadTeamSteps(head)])
-  const WD = ['日', '月', '火', '水', '木', '金', '土']
+  const [events, rejoin] = await Promise.all([loadPlayerTeamEvents(head, tz), loadRejoin([head.id], head.today)])
+  const r = rejoin.get(head.id)
+  const joinable = (date: string) => (r ? r.steps.filter((s) => s.date !== null && s.date <= date).map((s) => s.name) : null)
   return <>
     <PanelTitle>チーム合流</PanelTitle>
-    <div className="mb-5 rounded-card border border-layer-10 bg-layer-5 px-4 py-3 text-sm text-navy-200">
-      {head.participation === null
-        ? '参加区分がまだ決まっていません。左の「参加区分」から決めると、指導者にも伝わります。'
-        : <>今は<span className="font-bold text-white">{PART[head.participation].word}</span>{head.restriction ? `（${head.restriction}）` : ''}{head.expectedReturn ? `。復帰見込みは ${jaDate(head.expectedReturn).md}` : ''}。</>}
-    </div>
-    {plans.filter((p) => p.steps.length > 0).map((p) => <section key={p.label} className="mb-6">
-      <h3 className="mb-1 text-sm font-bold text-white">チーム練習の段階</h3>
-      <p className="mb-2 text-2xs text-navy-400">{p.label} ・ 今 <Num>{p.week}</Num> 週目 ・ 週はプロトコルの目安</p>
-      <div className="overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
-        {p.steps.map((s) => {
-          const reached = s.week !== null && p.week >= s.week
-          return <div key={s.name} className="flex items-center gap-3 px-4 py-3">
-            <span className={cn('h-2 w-2 shrink-0 rounded-pill', reached ? 'bg-emerald-400' : 'bg-layer-20')} aria-hidden="true" />
-            <span className={cn('min-w-0 flex-1 text-sm', reached ? 'text-white' : 'text-navy-300')}>{s.name}{s.condition && <span className="block text-2xs text-navy-400">{s.condition}</span>}</span>
-            <Num mono className={cn('shrink-0 text-2xs', reached ? 'text-emerald-400' : 'text-navy-400')}>{s.week === null ? '目安なし' : `${s.week}週目〜`}</Num>
-          </div>
-        })}
-      </div>
-    </section>)}
-    <h3 className="mb-2 text-sm font-bold text-white">{head.team ?? 'チーム'}のこれからの予定</h3>
+    {!r
+      ? <p className="mb-6 text-sm text-navy-300">進行中の怪我はありません。チームの練習に全て参加できます。</p>
+      : r.steps.length === 0
+        ? <p className="mb-6 text-sm text-navy-400">{r.label} のプロトコルには、チーム練習の段階がありません。</p>
+        : <section className="mb-8">
+            <p className="mb-3 text-sm text-navy-300">{r.label} ・ 今 <Num>{r.week}</Num> 週目{r.fullOn ? <> ・ 全て合流できる見込み <span className="font-bold text-white"><Num>{mdw(r.fullOn)}</Num></span></> : ''}</p>
+            <ol className="relative space-y-0 border-l border-layer-10 pl-5">
+              {r.steps.map((s) => <li key={s.name} className="relative pb-4 last:pb-0">
+                <span className={cn('absolute -left-[1.6rem] top-1 h-3 w-3 rounded-pill border-2', s.reached ? 'border-emerald-400 bg-emerald-400' : 'border-navy-500 bg-navy-900')} aria-hidden="true" />
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className={cn('text-sm', s.reached ? 'text-white' : 'text-navy-300')}>{s.name}</span>
+                  <Num mono className={cn('shrink-0 text-2xs', s.reached ? 'text-emerald-400' : 'text-navy-400')}>{s.reached ? '合流済み' : s.date ? `${mdw(s.date)}〜` : '目安なし'}</Num>
+                </div>
+                {s.condition && <p className="text-2xs text-navy-400">{s.condition}</p>}
+              </li>)}
+            </ol>
+          </section>}
+    <h3 className="mb-2 text-sm font-bold text-white">{head.team ?? 'チーム'}の予定</h3>
     {!head.teamId
       ? <p className="text-sm text-navy-400">この選手はチームに入っていません。</p>
       : events.length === 0
-        ? <p className="text-sm text-navy-400">6 週間先までの予定はありません。チームの画面から足せます。</p>
+        ? <p className="text-sm text-navy-400">6 週間先までの予定はありません。</p>
         : <div className="overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
-            {events.map((e) => {
-              const ok = head.expectedReturn ? e.date >= head.expectedReturn : head.participation === 'full'
-              return <div key={e.id} className="flex items-center gap-3 px-4 py-3">
-                <Num mono className="w-16 shrink-0 text-2xs text-navy-300">{Number(e.date.slice(5, 7))}/{Number(e.date.slice(8))} {WD[new Date(`${e.date}T00:00:00Z`).getUTCDay()]}</Num>
-                <span className="min-w-0 flex-1 text-sm text-white">{e.kind === 'match' ? `vs ${e.opponent ?? '相手未定'}` : e.kind === 'training' ? 'チーム練習' : 'オフ'}</span>
-                <span className={cn('shrink-0 text-2xs font-bold', ok ? 'text-emerald-400' : 'text-navy-400')}>{e.kind === 'off' ? '' : ok ? '合流見込み' : head.participation === 'limited' ? '制限付き' : '不参加'}</span>
+            {events.filter((e) => e.kind !== 'off').map((e) => {
+              const j = joinable(e.date)
+              const all = !r || (r.steps.length > 0 && j!.length === r.steps.length)
+              return <div key={e.id} className="flex items-start gap-3 px-4 py-3">
+                <Num mono className="w-20 shrink-0 pt-0.5 text-2xs text-navy-300">{mdw(e.date)}</Num>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm text-white">{e.kind === 'match' ? `vs ${e.opponent ?? '相手未定'}` : 'チーム練習'}</span>
+                  {r && r.steps.length > 0 && !all && <span className="block text-2xs text-navy-400">{j!.length ? `参加できる: ${j!.join('・')}` : '参加できる練習はまだありません'}</span>}
+                </span>
+                {r && r.steps.length > 0 && <span className={cn('shrink-0 text-2xs font-bold', all ? 'text-emerald-400' : j!.length ? 'text-amber-400' : 'text-navy-500')}>{all ? '全て参加' : j!.length ? '一部参加' : '不参加'}</span>}
               </div>
             })}
           </div>}
   </>
 }
 
-async function Report({ head }: { head: PlayerHead }) {
-  const r = await loadReport(head)
-  const shown = r.days.filter((d) => d.total > 0 || d.pain !== null || d.fatigue !== null)
-  return <>
-    <PanelTitle>レポート（直近 4 週）</PanelTitle>
-    <div className="mb-5 flex gap-6">
-      <div><p className="text-2xs text-navy-400">メニューの実施</p><p className="text-2xl font-bold text-white">{r.rate === null ? '—' : <><Num>{r.rate}</Num><span className="text-sm text-navy-300"> %</span></>}</p></div>
-      <div><p className="text-2xs text-navy-400">調子の記録</p><p className="text-2xl font-bold text-white"><Num>{r.days.filter((d) => d.pain !== null || d.fatigue !== null).length}</Num><span className="text-sm text-navy-300"> 日</span></p></div>
+const SCALES: { id: ReportScale; label: string }[] = [{ id: 'week', label: '週' }, { id: 'month', label: '月' }, { id: 'year', label: '年' }]
+
+async function Report({ head, scale }: { head: PlayerHead; scale: ReportScale }) {
+  const r = await loadReport(head, scale)
+  const thin = r.buckets.length > 12
+  const Bars = ({ title, value, max, tone }: { title: string; value: (b: (typeof r.buckets)[number]) => number | null; max: number; tone: string }) => <div>
+    <p className="mb-2 text-2xs text-navy-400">{title}</p>
+    <div className={cn('flex h-24 items-end', thin ? 'gap-px' : 'gap-1.5')}>
+      {r.buckets.map((b) => { const v = value(b); return <div key={b.key} className="flex h-full flex-1 flex-col justify-end" title={`${b.label} ${v ?? '—'}`}>
+        {v === null ? <span className="h-px w-full bg-layer-10" /> : <span className={cn('w-full rounded-t-badge', tone)} style={{ height: `${Math.max(4, (v / max) * 100)}%` }} />}
+      </div> })}
     </div>
-    {shown.length === 0
-      ? <p className="text-sm text-navy-400">この 4 週の記録はありません。</p>
-      : <div className="overflow-hidden rounded-card border border-layer-10">
-          <div className="grid grid-cols-[4rem_1fr_3rem_3rem] gap-2 border-b border-layer-10 bg-layer-5 px-4 py-2 text-2xs text-navy-400"><span>日付</span><span>実施</span><span>痛み</span><span>疲労</span></div>
-          {shown.slice().reverse().map((d) => <div key={d.date} className="grid grid-cols-[4rem_1fr_3rem_3rem] items-center gap-2 border-b border-layer-5 px-4 py-2 text-sm last:border-b-0">
-            <Num mono className="text-2xs text-navy-300">{jaDate(d.date).md}</Num>
-            <span className="flex items-center gap-2">
-              {d.total > 0 ? <>
-                <span className="h-1.5 w-16 overflow-hidden rounded-pill bg-layer-10"><span className="block h-full bg-emerald-400" style={{ width: `${(d.done / d.total) * 100}%` }} /></span>
-                <Num className="text-2xs text-navy-300">{d.done}/{d.total}</Num>
-              </> : <span className="text-2xs text-navy-500">—</span>}
-            </span>
-            <Num className="text-navy-100">{d.pain ?? '—'}</Num>
-            <Num className="text-navy-100">{d.fatigue ?? '—'}</Num>
-          </div>)}
-        </div>}
+  </div>
+  return <>
+    <PanelTitle action={<div className="flex rounded-pill border border-layer-10 p-0.5">
+      {SCALES.map((s) => <Link key={s.id} href={`/players/${head.id}?tab=report&scale=${s.id}`} aria-current={s.id === scale ? 'page' : undefined}
+        className={cn('rounded-pill px-4 py-1.5 text-sm', s.id === scale ? 'bg-layer-10 font-bold text-white' : 'text-navy-400 hover:text-white')}>{s.label}</Link>)}
+    </div>}>レポート</PanelTitle>
+    <div className="mb-6 flex gap-8">
+      <div><p className="text-2xs text-navy-400">メニューの実施</p><p className="text-2xl font-bold text-white">{r.rate === null ? '—' : <><Num>{r.rate}</Num><span className="text-sm text-navy-300"> %</span></>}</p></div>
+      <div><p className="text-2xs text-navy-400">調子の記録</p><p className="text-2xl font-bold text-white"><Num>{r.reported}</Num><span className="text-sm text-navy-300"> 日</span></p></div>
+    </div>
+    <div className="space-y-5 rounded-card border border-layer-10 bg-layer-5 p-4">
+      <Bars title="実施（%）" value={(b) => (b.total ? Math.round((b.done / b.total) * 100) : null)} max={100} tone="bg-emerald-400" />
+      <Bars title="痛み（0〜6）" value={(b) => b.pain} max={6} tone="bg-red-400" />
+      <Bars title="疲労（0〜6）" value={(b) => b.fatigue} max={6} tone="bg-amber-400" />
+      <div className={cn('flex', thin ? 'gap-px' : 'gap-1.5')}>
+        {r.buckets.map((b, i) => <Num key={b.key} mono className="flex-1 text-center text-2xs text-navy-500">{!thin || i % 5 === 0 || i === r.buckets.length - 1 ? b.label : ''}</Num>)}
+      </div>
+    </div>
     {r.comments.length > 0 && <div className="mt-5 space-y-2">
       <h3 className="text-sm font-bold text-white">選手のひとこと</h3>
       {r.comments.slice().reverse().map((c) => <p key={c.date} className="text-sm text-navy-200"><Num className="mr-2 text-2xs text-navy-400">{jaDate(c.date).md}</Num>{c.comment}</p>)}

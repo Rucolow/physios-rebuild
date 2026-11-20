@@ -1,4 +1,5 @@
 import 'server-only'
+import { playerStates } from '@/lib/team'
 import { adminDb } from '@/lib/supabase/server'
 import { addDays, daysBetween, jaDate, localDate, weekSince } from '@/lib/date'
 import { personName } from '@/lib/format/name'
@@ -68,8 +69,8 @@ export async function loadDashboard(trainer: Trainer): Promise<DashboardData> {
   const teamIds = (teams ?? []).map((t) => t.id).concat(['00000000-0000-0000-0000-000000000000'])
   const teamName = new Map((teams ?? []).map((t) => [t.id, t.name]))
 
-  const [{ data: status }, { data: watch }, { data: drafts }, { data: events }, { data: rx }, { data: reports }] = await Promise.all([
-    db.from('availability_status').select('player_id, status').in('player_id', ids).is('valid_to', null),
+  const [st, { data: watch }, { data: drafts }, { data: events }, { data: rx }, { data: reports }] = await Promise.all([
+    playerStates((players ?? []).map((p) => p.id), today),
     db.from('watch_period').select('player_id, added_at').in('player_id', ids).is('released_at', null),
     db.from('draft').select('local_date, confirm_reason, answer').eq('trainer_id', trainer.id).eq('status', 'pending'),
     db
@@ -87,7 +88,7 @@ export async function loadDashboard(trainer: Trainer): Promise<DashboardData> {
     db.from('condition_report').select('player_id, reported_on, pain_score').in('player_id', ids).gte('reported_on', addDays(today, -2)),
   ])
 
-  const count = (s: string) => (status ?? []).filter((x) => x.status === s).length
+  const count = (s: string) => [...st.status.values()].filter((x) => x.status === s).length
   const needsAnswer = (d: { confirm_reason: string | null; answer: unknown }) => d.confirm_reason !== null && d.answer === null
   const carriedRows = (drafts ?? []).filter((d) => d.local_date < today)
   const todayRows = (drafts ?? []).filter((d) => d.local_date === today)

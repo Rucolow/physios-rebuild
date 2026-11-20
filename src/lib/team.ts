@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/supabase/server'
 import { addDays, daysBetween, localDate } from '@/lib/date'
 import { personName } from '@/lib/format/name'
 import type { Trainer } from '@/lib/auth'
+import { joinableText, loadRejoin } from '@/lib/rejoin'
 import type { MonthlyCalendar, ScheduleEvent } from '@/lib/types'
 
 export interface TeamRef {
@@ -84,18 +85,31 @@ export async function listTeams(trainerId: string): Promise<TeamRef[]> {
   return data ?? []
 }
 
-/** 選手の今の参加区分・復帰見込み・要観察 */
-export async function playerStates(playerIds: string[]) {
+/**
+ * 選手の今の参加区分・復帰見込み・要観察。
+ * 参加区分と復帰見込みは、清水のプロトコルのチーム合流の段階から決まる（トレーナーが選ばない）。
+ * 進行中の怪我が無い選手は完全参加。段階のデータが無い怪我は未設定（null）
+ */
+export async function playerStates(playerIds: string[], today?: string) {
   const ids = playerIds.concat(['00000000-0000-0000-0000-000000000000'])
   const db = adminDb()
-  const [{ data: st }, { data: w }] = await Promise.all([
-    db.from('availability_status').select('player_id, status, expected_return, restriction').in('player_id', ids).is('valid_to', null),
+  let day = today
+  if (!day) {
+    const { data: p } = await db.from('player').select('trainer:trainer_id(time_zone)').in('id', ids).limit(1).maybeSingle()
+    day = localDate((p?.trainer as unknown as { time_zone: string } | null)?.time_zone ?? 'Europe/Berlin')
+  }
+  const [rejoin, { data: w }] = await Promise.all([
+    loadRejoin(playerIds, day),
     db.from('watch_period').select('player_id').in('player_id', ids).is('released_at', null),
   ])
-  return {
-    status: new Map((st ?? []).map((s) => [s.player_id, s])),
-    watching: new Set((w ?? []).map((x) => x.player_id)),
+  const status = new Map<string, { player_id: string; status: Participation; expected_return: string | null; restriction: string | null }>()
+  for (const id of playerIds) {
+    const r = rejoin.get(id)
+    status.set(id, r
+      ? { player_id: id, status: r.status, expected_return: r.fullOn, restriction: joinableText(r) }
+      : { player_id: id, status: 'full', expected_return: null, restriction: null })
   }
+  return { status, watching: new Set((w ?? []).map((x) => x.player_id)), rejoin }
 }
 
 export async function loadTeam(trainer: Trainer, teamId: string | null): Promise<TeamData> {
@@ -213,7 +227,7 @@ export async function loadTeam(trainer: Trainer, teamId: string | null): Promise
   }
 
   const scope = (players ?? []).filter((p) => !current || p.team_id === current.id)
-  const st = await playerStates(scope.map((p) => p.id))
+  const st = await playerStates(scope.map((p) => p.id), today)
   return {
     teams,
     current,

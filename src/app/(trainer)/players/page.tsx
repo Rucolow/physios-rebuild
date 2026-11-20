@@ -44,7 +44,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
   const filtered = rows.filter((r) => (!team || r.teamId === team) && (!q || r.text.includes(q.trim())))
   const count = (f: (r: Row) => boolean) => rows.filter(f).length
   const groups: { title: string; rows: Row[] }[] = [
-    { title: '参加区分 未設定', rows: filtered.filter((r) => r.status === null) },
+    { title: '合流の目安なし', rows: filtered.filter((r) => r.status === null) },
     { title: '離脱中', rows: filtered.filter((r) => r.status === 'out') },
     { title: '制限付き', rows: filtered.filter((r) => r.status === 'limited') },
     { title: '要観察', rows: filtered.filter((r) => r.status === 'full' && r.watching) },
@@ -94,7 +94,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
               <p className="mt-1 truncate text-2xs text-navy-400">{r.meta}</p>
             </div>
             {r.status === null
-              ? <span className={cn('shrink-0 text-2xs font-bold', SIGNAL.watch.text)}>未設定</span>
+              ? <span className={cn('shrink-0 text-2xs font-bold', SIGNAL.watch.text)}>目安なし</span>
               : r.right && <Num className={cn('shrink-0 text-sm', r.urgent ? cn('font-bold', SIGNAL.watch.text) : 'text-navy-200')}>{r.right}</Num>}
           </Link>)}
         </div>

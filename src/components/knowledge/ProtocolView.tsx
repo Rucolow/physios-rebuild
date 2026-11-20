@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { ChevronDown, Layers } from 'lucide-react'
-import { ExerciseVideo } from '@/components/ui/ExerciseVideo'
+import { VideoFrame } from '@/components/menu/VideoFrame'
 import type { SheetExercise, SheetRow } from '@/lib/knowledge'
 
 const strip = (s: string) => s.replace(/^・/, '')
@@ -114,40 +114,8 @@ export function ProtocolView({ rows, articles }: { rows: SheetRow[]; articles: {
           「両日実施」・全○全×・Day A/B 切替は置かない（director）。全カテゴリ展開が初期状態。
           **カテゴリ群は独自の包みに入れる**（旧と同じ。週カード・関連と同じ space-y に混ぜると
           先頭カードに margin-top が付き、参照の margin 0 と食い違う） */}
-      <div className="space-y-4">
-      {(row?.cells ?? []).map((cell) => <div
-        key={`${cell.columnLabel}:${cell.categoryLabel}`}
-        data-measure="protocol-card"
-        className="overflow-hidden rounded-[var(--oa-radius-lg)] border border-[color:var(--oa-border)] bg-white/[0.03] transition-colors duration-300 hover:border-white/15"
-      >
-        {/* 見出しは tile（面）＋ 太字の題（裁定 D2）。旧 `CategoryCard` のアイコンは
-            **全カテゴリ同じ `Layers` 16px** で、色が変わるのは Day A/B のときだけ。
-            PHYSIOS に A/B は無いので既定色（tile white 5% / 字 white 40%）を使う——
-            図像の種別データは要らず、発明にならない */}
-        <div data-measure="protocol-cat" className="flex items-center gap-3 border-b border-white/5 px-4 py-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-[var(--oa-radius-md)] bg-[color:var(--oa-surface)]">
-            <Layers size={16} strokeWidth={2} aria-hidden="true" className="text-white/40" />
-          </span>
-          {/* 題は**カテゴリ名のみ**（裁定 J240）。`{columnLabel} — {categoryLabel}` の前置きは
-              director の対応表「題のみ」に反する実装側の足し込みで、390 の実効幅 280px に
-              収まらず**後半のカテゴリ名側が切れていた**（detect の `text-overflow` 13 件・
-              `em-dash-overuse`＝em ダッシュ 18 本・advisory 1 件）。列名は冗長である——
-              語彙表 `docs/clinical/menu_headings.tsv` の 18 名はいずれも 1 列にしか属さないので、
-              カテゴリ名から列は一意に定まる。
-              **幅で内容を分岐させない**（1440 だけ出す器も作らない）。
-              `min-w-0 flex-1 truncate` は残す——外すと箱が shrink-to-fit になり
-              `decisions-protocol-cat.json` の `h3#0.box.width` が変わる */}
-          <h3 className="min-w-0 flex-1 truncate text-[14px] font-[600] leading-[20px] text-white">
-            {cell.categoryLabel}
-          </h3>
-        </div>
-        <div>
-          {cell.exercises.map((exercise) => <ExerciseRow key={exercise.exerciseId} exercise={exercise} />)}
-          {cell.exercises.length === 0 && <p className="px-4 py-3 text-[12px] leading-[16px] text-white/40">
-            このマスは未投入です。
-          </p>}
-        </div>
-      </div>)}
+      <div className="space-y-2">
+      {(row?.cells ?? []).map((cell) => <CategoryCard key={`${row!.menuRowId}:${cell.columnLabel}:${cell.categoryLabel}`} cell={cell} />)}
       </div>
 
       {(row?.cells.length ?? 0) === 0 && <div className="rounded-[var(--oa-radius-lg)] border border-[color:var(--oa-border)] bg-white/[0.03] px-4 py-3">
@@ -155,6 +123,26 @@ export function ProtocolView({ rows, articles }: { rows: SheetRow[]; articles: {
       </div>}
     </div>
   </>
+}
+
+/** 見出し（カテゴリ）。押すと種目が開く。初めは閉じておく */
+function CategoryCard({ cell }: { cell: SheetRow['cells'][number] }) {
+  const [open, setOpen] = useState(false)
+  const n = cell.exercises.length
+  return <div className="overflow-hidden rounded-[var(--oa-radius-lg)] border border-[color:var(--oa-border)] bg-white/[0.03]">
+    <button type="button" aria-expanded={open} disabled={n === 0} onClick={() => setOpen(!open)}
+      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] disabled:cursor-default disabled:hover:bg-transparent">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-[var(--oa-radius-md)] bg-[color:var(--oa-surface)]">
+        <Layers size={16} strokeWidth={2} aria-hidden="true" className="text-white/40" />
+      </span>
+      <span className={`min-w-0 flex-1 truncate text-[14px] font-[600] leading-[20px] ${n ? 'text-white' : 'text-white/40'}`}>{cell.categoryLabel}</span>
+      <span className="shrink-0 text-[12px] text-white/40 tabular-nums">{n ? `${n} 種目` : 'なし'}</span>
+      {n > 0 && <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-white/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />}
+    </button>
+    {open && <div className="border-t border-white/5">
+      {cell.exercises.map((exercise) => <ExerciseRow key={exercise.exerciseId} exercise={exercise} />)}
+    </div>}
+  </div>
 }
 
 /**
@@ -170,7 +158,7 @@ export function ProtocolView({ rows, articles }: { rows: SheetRow[]; articles: {
 function ExerciseRow({ exercise }: { exercise: SheetExercise }) {
   const [open, setOpen] = useState(false)
   const { row: chips, folded } = doseParts(exercise)
-  const empty = !exercise.videoUrl && folded.length === 0 && !exercise.startPosition && !exercise.movement && exercise.focusPoints.length === 0
+  const empty = folded.length === 0 && !exercise.startPosition && !exercise.movement && exercise.focusPoints.length === 0
 
   return <div className="border-b border-white/5 transition-colors duration-200 last:border-b-0">
     <button
@@ -207,6 +195,7 @@ function ExerciseRow({ exercise }: { exercise: SheetExercise }) {
         行に載せなかった逐語（休憩・改行を含む列）を捨てずにここで読む（§5-9・J174-2）。
         改行は保つ——著者の箇条書きを潰さない */}
     {open && <div className="space-y-3 border-t border-white/5 py-3 pl-11 pr-4">
+      <div className="max-w-md"><VideoFrame url={exercise.videoUrl} title={exercise.name} /></div>
       {folded.length > 0 && <p className="whitespace-pre-line text-[12px] leading-[16px] text-white/50 tabular-nums">
         {folded.join('\n')}
       </p>}
@@ -224,7 +213,6 @@ function ExerciseRow({ exercise }: { exercise: SheetExercise }) {
           {exercise.focusPoints.map((f) => <li key={f} className="text-[14px] leading-[20px] text-white/80">{f}</li>)}
         </ul>
       </div>}
-      {exercise.videoUrl && <ExerciseVideo url={exercise.videoUrl} provenance={null} labels={{ watch: '動画を見る', aiGenerated: '' }} />}
       {/* J18-3: 未登録は文言で言う。空欄で表さない */}
       {empty && <p className="text-[12px] leading-[16px] text-white/40">この種目の詳細は登録されていません。</p>}
     </div>}

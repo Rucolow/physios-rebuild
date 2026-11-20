@@ -2,6 +2,7 @@ import 'server-only'
 import { adminDb } from '@/lib/supabase/server'
 import { addDays, localDate, weekSince } from '@/lib/date'
 import { prescribe } from '@/lib/prescribe'
+import { dayFocusLabel } from '@/lib/dayFocus'
 
 export interface PlayerDayItem {
   id: string
@@ -25,6 +26,8 @@ export interface PlayerDay {
   canMoveForward: boolean
   episode: null | { label: string; week: number; period: string | null }
   rest: boolean
+  /** その日の中心（「下半身メイン」など） */
+  focus: string | null
   items: PlayerDayItem[] | null
 }
 
@@ -68,18 +71,18 @@ export async function loadPlayerDay(player: { id: string; trainer_id: string }, 
 
   const { data: ep } = await db
     .from('injury_episode')
-    .select('id, label, injured_on')
+    .select('id, label, injured_on, protocol_id')
     .eq('player_id', player.id)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (!ep) return { date, today, canMoveForward: date < tomorrow, episode: null, rest: false, items: null }
+  if (!ep) return { date, today, canMoveForward: date < tomorrow, episode: null, rest: false, focus: null, items: null }
 
   if (date >= today) await prescribe(ep.id, date)
   const { data: rx } = await db
     .from('prescription')
-    .select(`id, is_rest_day, row:menu_row_id(period_raw), ${ITEMS_SELECT}`)
+    .select(`id, is_rest_day, day_group, row:menu_row_id(period_raw), ${ITEMS_SELECT}`)
     .eq('injury_episode_id', ep.id)
     .eq('target_on', date)
     .maybeSingle()
@@ -92,6 +95,7 @@ export async function loadPlayerDay(player: { id: string; trainer_id: string }, 
     canMoveForward: date < tomorrow,
     episode: { label: ep.label, week: weekSince(ep.injured_on, date), period },
     rest: !!rx?.is_rest_day,
+    focus: rx && !rx.is_rest_day ? await dayFocusLabel(ep.protocol_id, rx.day_group) : null,
     items,
   }
 }

@@ -17,9 +17,9 @@ export default async function TrainerLayout({ children }: { children: React.Reac
   const trainer = await requireTrainer()
   return (
     <RecorderProvider>
-      <div className="min-h-screen shell-bg text-navy-100">
+      <div className="min-h-screen shell-bg text-navy-100 md:pl-rail">
         <TrainerHeader trainerName={trainer.name} initials={initialsOf(trainer.name)} />
-        <div className="pb-nav">{children}</div>
+        <div className="pb-nav md:pb-0">{children}</div>
         <TrainerNav />
       </div>
     </RecorderProvider>

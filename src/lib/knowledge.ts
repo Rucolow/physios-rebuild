@@ -19,7 +19,6 @@ export const BODY_REGIONS = {
   general: '全身',
 } as const
 
-export type KnowledgeFilter = 'all' | 'protocol' | 'brucke' | 'bookmark' | ArticleCategory
 
 export interface KnowledgeCard {
   key: string
@@ -133,15 +132,35 @@ export function healingText(p: { healing_weeks_min: number | null; healing_weeks
   return `${a ?? b}週`
 }
 
-/** 一覧。プロトコルは全て、記事は自分が書いたものと BRÜCKE のもの */
-export async function loadKnowledge(trainer: Trainer, filter: KnowledgeFilter, query: string) {
+/** プロトコルの題の頭（「ハムストリングス肉離れ・中程度・なし」の「ハムストリングス肉離れ」）が疾患の名前 */
+export function diseaseName(title: string) {
+  return title.split('・')[0]
+}
+/** 題から疾患の名前を除いた残り（程度・術式）。術式「なし」は書かない */
+export function variantName(title: string) {
+  const rest = title.split('・').slice(1).filter((x) => x !== 'なし')
+  return rest.join('・') || '基本'
+}
+
+/** BRÜCKE の分野のうち、フィジオの仕事に関係するもの（「大分類 / 中分類」の頭で選ぶ） */
+const BRUCKE_FIELDS = ['リハビリ', '臨床', 'パフォーマンス', 'こころと脳 / 痛みの科学']
+export const isRelevantBrucke = (category: string) => BRUCKE_FIELDS.some((f) => category === f || category.startsWith(f))
+
+export type KnowledgeTab = 'all' | 'disease' | 'brucke' | 'bookmark'
+
+export interface DiseaseCard {
+  key: string
+  name: string
+  variants: string[]
+  inUse: number
+}
+
+/** 一覧。疾患（プロトコルを疾患ごとに一つ）・BRÜCKE の関係する記事・自分の記事 */
+export async function loadKnowledge(trainer: Trainer, query: string) {
   const db = adminDb()
   const q = query.trim().toLowerCase()
   const [{ data: protocols }, { data: articles }, { data: marks }, { data: eps }] = await Promise.all([
-    db
-      .from('protocol')
-      .select('id, title, grade, severity_label, surgery, healing_weeks_min, healing_weeks_max, rows:protocol_menu_row(id)')
-      .order('title'),
+    db.from('protocol').select('id, title, injury_key').order('title'),
     db
       .from('knowledge_article')
       .select('id, source, owner_trainer_id, category, body_region, title, summary, tags, evidence_grade, author_name, published_on, updated_at')
@@ -154,56 +173,65 @@ export async function loadKnowledge(trainer: Trainer, filter: KnowledgeFilter, q
   const inUse = new Map<string, number>()
   for (const e of eps ?? []) if (e.protocol_id) inUse.set(e.protocol_id, (inUse.get(e.protocol_id) ?? 0) + 1)
 
-  const protocolCards: KnowledgeCard[] = (protocols ?? []).map((p) => {
-    // 種目数は一覧では数えない（マスと種目が 2 万行あり、一覧のたびに数えると重い。詳細で出す）
-    const rows = (p.rows ?? []) as unknown as { id: string }[]
-    const using = inUse.get(p.id) ?? 0
-    return {
-      key: `protocol:${p.id}`,
-      href: `/knowledge/protocol/${p.id}`,
-      kind: 'プロトコル',
-      sub: protocolSub(p),
-      title: p.title,
-      description: null,
-      meta: [`時期 ${rows.length}`, healingText(p) ? `治癒 ${healingText(p)}` : null, using ? `適用中 ${using}名` : null].filter(
-        (x): x is string => Boolean(x),
-      ),
-      articleId: null,
-      bookmarked: false,
-    }
-  })
-  const articleCards: (KnowledgeCard & { category: string; source: string; text: string })[] = (articles ?? []).map((a) => ({
+  const byKey = new Map<string, DiseaseCard>()
+  for (const p of protocols ?? []) {
+    const d: DiseaseCard = byKey.get(p.injury_key) ?? { key: p.injury_key, name: diseaseName(p.title), variants: [], inUse: 0 }
+    d.variants.push(variantName(p.title))
+    d.inUse += inUse.get(p.id) ?? 0
+    byKey.set(p.injury_key, d)
+  }
+  let diseases = [...byKey.values()]
+  const toCard = (a: NonNullable<typeof articles>[number]): KnowledgeCard => ({
     key: `article:${a.id}`,
     href: `/knowledge/article/${a.id}`,
     kind: a.source === 'brucke' ? 'BRÜCKE' : ARTICLE_CATEGORIES[a.category as ArticleCategory] ?? a.category,
-    sub: a.source === 'brucke' ? a.category : a.body_region ? BODY_REGIONS[a.body_region as keyof typeof BODY_REGIONS] ?? null : null,
+    sub: a.source === 'brucke' ? a.category.split(' / ').at(-1) ?? null : a.body_region ? BODY_REGIONS[a.body_region as keyof typeof BODY_REGIONS] ?? null : null,
     title: a.title,
     description: a.summary,
-    meta: [a.evidence_grade ? `エビデンス ${a.evidence_grade}` : null, a.author_name, a.published_on].filter((x): x is string => Boolean(x)),
+    meta: [a.author_name, a.published_on].filter((x): x is string => Boolean(x)),
     articleId: a.id,
     bookmarked: marked.has(a.id),
-    category: a.category,
-    source: a.source,
-    text: [a.title, a.summary, ...(a.tags ?? [])].join(' ').toLowerCase(),
-  }))
+  })
+  const match = (text: string) => !q || text.toLowerCase().includes(q)
+  let brucke = (articles ?? []).filter((a) => a.source === 'brucke' && isRelevantBrucke(a.category))
+  let mine = (articles ?? []).filter((a) => a.source === 'trainer')
+  if (q) {
+    diseases = diseases.filter((d) => match([d.name, ...d.variants].join(' ')))
+    brucke = brucke.filter((a) => match([a.title, a.summary, ...(a.tags ?? [])].join(' ')))
+    mine = mine.filter((a) => match([a.title, a.summary, ...(a.tags ?? [])].join(' ')))
+  }
+  const visible = [...brucke, ...mine]
+  return {
+    diseases,
+    brucke: brucke.map(toCard),
+    mine: mine.map(toCard),
+    bookmarks: visible.filter((a) => marked.has(a.id)).map(toCard),
+  }
+}
 
-  const counts = {
-    all: protocolCards.length + articleCards.length,
-    protocol: protocolCards.length,
-    brucke: articleCards.filter((a) => a.source === 'brucke').length,
-    bookmark: articleCards.filter((a) => a.bookmarked).length,
-    ...Object.fromEntries(Object.keys(ARTICLE_CATEGORIES).map((k) => [k, articleCards.filter((a) => a.source === 'trainer' && a.category === k).length])),
-  } as Record<KnowledgeFilter, number>
+/** 疾患のページ。程度・術式ごとのプロトコル */
+export async function loadDisease(key: string) {
+  const { data } = await adminDb()
+    .from('protocol')
+    .select('id, title, grade, severity_label, surgery, healing_weeks_min, healing_weeks_max')
+    .eq('injury_key', key)
+    .order('title')
+  if (!data?.length) return null
+  return { key, name: diseaseName(data[0].title), variants: data.map((p) => ({ ...p, name: variantName(p.title) })) }
+}
 
-  let cards: KnowledgeCard[]
-  if (filter === 'protocol') cards = protocolCards
-  else if (filter === 'brucke') cards = articleCards.filter((a) => a.source === 'brucke')
-  else if (filter === 'bookmark') cards = articleCards.filter((a) => a.bookmarked)
-  else if (filter === 'all') cards = [...protocolCards, ...articleCards]
-  else cards = articleCards.filter((a) => a.source === 'trainer' && a.category === filter)
-
-  if (q) cards = cards.filter((c) => ((c as { text?: string }).text ?? c.title.toLowerCase()).includes(q))
-  return { cards, counts }
+/** プロトコルのチーム練習の段階（0004 の適用前は空） */
+export async function protocolTeamSteps(protocolId: string) {
+  const { data } = await adminDb()
+    .from('protocol_team_unlock')
+    .select('unlock_week, condition_raw, step:team_step_id(name, sort_order)')
+    .eq('protocol_id', protocolId)
+  return (data ?? [])
+    .map((u) => {
+      const s = u.step as unknown as { name: string; sort_order: number }
+      return { name: s.name, order: s.sort_order, week: u.unlock_week as number | null, condition: u.condition_raw as string | null }
+    })
+    .sort((a, b) => (a.week ?? 999) - (b.week ?? 999) || a.order - b.order)
 }
 
 export async function loadArticle(trainer: Trainer, id: string) {
