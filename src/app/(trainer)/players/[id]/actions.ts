@@ -4,6 +4,7 @@ import { requireTrainer } from '@/lib/auth'
 import { adminDb } from '@/lib/supabase/server'
 import { localDate } from '@/lib/date'
 import { KARTE_COLUMN, loadKarteFields } from '@/lib/playerDetail'
+import { closeEpisode, reopenEpisode } from '@/lib/episode'
 
 async function ownPlayer(trainerId: string, playerId: string) {
   const { data } = await adminDb().from('player').select('id').eq('id', playerId).eq('trainer_id', trainerId).maybeSingle()
@@ -90,4 +91,80 @@ export async function setKarteFields(playerId: string, labels: string[]): Promis
   }
   revalidatePath(`/players/${playerId}`)
   return { ok: true, message: null }
+}
+
+type Result = { ok: true } | { ok: false; message: string }
+
+async function ownEpisode(trainerId: string, playerId: string, episodeId: string) {
+  await ownPlayer(trainerId, playerId)
+  const { data } = await adminDb().from('injury_episode').select('id, label').eq('id', episodeId).eq('player_id', playerId).maybeSingle()
+  if (!data) throw new Error('怪我が見つかりません')
+  return data
+}
+
+function refreshPlayer(playerId: string) {
+  for (const p of [`/players/${playerId}`, '/players', '/dashboard', '/team']) revalidatePath(p)
+}
+
+/** 怪我を復帰にする。故障者リストから外れる。記録は残り、カルテにも復帰の一行を残す */
+export async function returnFromInjury(playerId: string, episodeId: string): Promise<Result> {
+  const trainer = await requireTrainer()
+  try {
+    const ep = await ownEpisode(trainer.id, playerId, episodeId)
+    const db = adminDb()
+    const today = localDate(trainer.time_zone)
+    await closeEpisode(db, episodeId, today)
+    await db.from('karte_entry').insert({ player_id: playerId, injury_episode_id: episodeId, written_on: today, summary: `復帰（${ep.label}）`, confirmed_by: trainer.id })
+  } catch {
+    return { ok: false, message: '復帰にできませんでした。もう一度お試しください。' }
+  }
+  refreshPlayer(playerId)
+  return { ok: true }
+}
+
+/** 復帰を取り消して、進行中の怪我に戻す */
+export async function undoReturn(playerId: string, episodeId: string): Promise<Result> {
+  const trainer = await requireTrainer()
+  try {
+    const ep = await ownEpisode(trainer.id, playerId, episodeId)
+    const db = adminDb()
+    await reopenEpisode(db, episodeId)
+    // 「復帰にする」で足したカルテの一行も消す（音声メモから記録したカルテは消さない）
+    await db.from('karte_entry').delete().eq('injury_episode_id', episodeId).eq('summary', `復帰（${ep.label}）`).is('source_draft_id', null)
+  } catch {
+    return { ok: false, message: '戻せませんでした。もう一度お試しください。' }
+  }
+  refreshPlayer(playerId)
+  return { ok: true }
+}
+
+/** 選手の名前・呼び方・チームを直す */
+export async function updatePlayer(playerId: string, input: { family: string; given: string; aliases: string; team: string }): Promise<Result> {
+  const trainer = await requireTrainer()
+  await ownPlayer(trainer.id, playerId)
+  const family = input.family.trim()
+  const given = input.given.trim()
+  const team = input.team.trim()
+  if (!family || !given) return { ok: false, message: '姓と名を入れてください。' }
+  const aliases = input.aliases.split(/[、,，\s]+/).map((a) => a.trim()).filter(Boolean)
+  const db = adminDb()
+  let teamId: string | null = null
+  if (team) {
+    const { data: t } = await db.from('team').upsert({ trainer_id: trainer.id, name: team }, { onConflict: 'trainer_id,name' }).select('id').single()
+    teamId = t?.id ?? null
+  }
+  const { error } = await db.from('player').update({ family_name: family, given_name: given, aliases, team: team || null, team_id: teamId }).eq('id', playerId)
+  if (error) return { ok: false, message: '保存できませんでした。もう一度お試しください。' }
+  refreshPlayer(playerId)
+  return { ok: true }
+}
+
+/** 選手を名簿から外す。記録は消さない（一覧・チーム・音声メモの同定に出なくなり、選手の画面のリンクも開かなくなる） */
+export async function removePlayer(playerId: string): Promise<Result> {
+  const trainer = await requireTrainer()
+  await ownPlayer(trainer.id, playerId)
+  const { error } = await adminDb().from('player').update({ is_active: false }).eq('id', playerId)
+  if (error) return { ok: false, message: '外せませんでした。もう一度お試しください。' }
+  refreshPlayer(playerId)
+  return { ok: true }
 }

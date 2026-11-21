@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button, Field, Input, Modal } from '@/components/ui'
 import { Num } from '@/components/ui/Num'
 import { SIGNAL } from '@/lib/design/signal'
 import { cn } from '@/lib/utils'
-import { addTeam, setMatchScore } from '@/app/(trainer)/team/actions'
+import { addTeam, deleteTeam, renameTeam, setMatchScore } from '@/app/(trainer)/team/actions'
 
 /** チームを足す */
 export function AddTeamButton() {
@@ -78,6 +78,51 @@ export function ScoreButton({ eventId, opponent, score }: { eventId: string; opp
           <Input id="score-against" type="number" inputMode="numeric" min={0} numeric value={b} disabled={pending} onChange={(e) => setB(e.target.value)} />
         </Field>
       </div>
+      {error && <p role="alert" className={cn('text-2xs font-medium', SIGNAL.act.text)}>{error}</p>}
+    </div>
+  </Modal>
+}
+
+/** チームの名前を直す・チームを消す */
+export function EditTeamButton({ teamId, name }: { teamId: string; name: string }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState(name)
+  const [removing, setRemoving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+  return <Modal
+    open={open}
+    onOpenChange={(n) => { setOpen(n); if (!n) { setValue(name); setRemoving(false); setError(null) } }}
+    busy={pending}
+    trigger={<button type="button" aria-label="チームを直す" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-field text-navy-400 hover:bg-layer-10 hover:text-white"><Pencil size={16} strokeWidth={2} aria-hidden="true" /></button>}
+    title={removing ? 'チームを消す' : 'チームを直す'}
+    footer={removing
+      ? <>
+          <Button variant="secondary" disabled={pending} onClick={() => { setRemoving(false); setError(null) }}>やめる</Button>
+          <Button variant="primary" disabled={pending} onClick={() => start(async () => {
+            const r = await deleteTeam(teamId)
+            if (!r.ok) { setError(r.message); return }
+            setOpen(false)
+            router.push('/team')
+          })}>{pending ? '消しています…' : 'このチームを消す'}</Button>
+        </>
+      : <>
+          <Button variant="ghost" disabled={pending} onClick={() => { setRemoving(true); setError(null) }}>消す</Button>
+          <Button variant="primary" disabled={pending || !value.trim()} onClick={() => start(async () => {
+            const r = await renameTeam(teamId, value)
+            if (!r.ok) { setError(r.message); return }
+            setOpen(false)
+            router.refresh()
+          })}>{pending ? '保存しています…' : '保存する'}</Button>
+        </>}
+  >
+    <div className="space-y-4">
+      {removing
+        ? <p className="text-sm text-navy-200">{name} を消します。このチームの予定と成績も消え、元に戻せません。</p>
+        : <Field id="team-rename" label="チームの名前">
+            <Input id="team-rename" value={value} disabled={pending} onChange={(e) => setValue(e.target.value)} />
+          </Field>}
       {error && <p role="alert" className={cn('text-2xs font-medium', SIGNAL.act.text)}>{error}</p>}
     </div>
   </Modal>

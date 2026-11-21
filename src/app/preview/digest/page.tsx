@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { DigestView, type DigestItem, type DigestContext } from '@/components/trainer/DigestView'
 import { TrainerNav } from '@/components/trainer/TrainerNav'
+import { RecorderProvider } from '@/components/trainer/RecorderProvider'
 import type { InterpretedSegment } from '@/lib/llm/interpret'
 
 /** 夜のダイジェストの見本（架空のデータ）。方向の確定のためだけに置く。本番では PHYSIOS_PREVIEW=1 のときだけ開く */
@@ -10,7 +11,7 @@ export default function PreviewDigest() {
   const seg = (p: Partial<InterpretedSegment>): InterpretedSegment => ({
     kind: 'karte', player_id: null, candidates: [], player_basis: '', summary: '', subjective: null, objective: null,
     assessment: null, treatment: null, plan: null, start_sec: 0, menu_row_index: null, protocol_candidates: [],
-    injured_on: null, kickoff_at: null, schedule_note: null, alert: null, ...p,
+    injured_on: null, kickoff_at: null, schedule_note: null, alert: null, returned: false, ...p,
   })
   const rows = (pid: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: `${pid}-r${i + 1}`, row_index: i + 1, week_hint: i + 1, period_raw: `${i + 1}週目〜` }))
   const ctx: DigestContext = {
@@ -47,11 +48,13 @@ export default function PreviewDigest() {
       seg: seg({ kind: 'schedule', summary: '土曜の練習試合が日曜 15 時に変更。', kickoff_at: '2026-11-08T15:00:00+01:00', schedule_note: '練習試合' }) },
   ]
   return (
-    <div className="min-h-screen shell-bg text-navy-100">
-      <div className="pb-nav">
+    <RecorderProvider>
+    <div className="min-h-screen shell-bg text-navy-100 md:pl-rail">
+      <div className="pb-nav md:pb-0">
         <DigestView preview dateLabel={{ full: '2026年11月4日', wd: '水曜日' }} pending={items} resolved={[]} failed={[]} ctx={ctx} />
       </div>
       <TrainerNav />
     </div>
+    </RecorderProvider>
   )
 }

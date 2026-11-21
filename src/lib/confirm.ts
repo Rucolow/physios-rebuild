@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/supabase/server'
 import { addDays, localDate } from '@/lib/date'
 import { activeEpisodes } from '@/lib/roster'
 import { prescribe } from '@/lib/prescribe'
+import { closeEpisode } from '@/lib/episode'
 import type { Trainer } from '@/lib/auth'
 import type { InterpretedSegment } from '@/lib/llm/interpret'
 
@@ -16,13 +17,15 @@ export interface DraftAnswer {
   accept_schedule?: boolean
   /** 読み返して直した一行 */
   summary?: string
+  /** 復帰の話に対する答え。true なら怪我を復帰にして故障者リストから外す */
+  close_episode?: boolean
 }
 
 export class ConfirmError extends Error {}
 
 /**
- * 今日のダイジェストを一括で確定する（設計書 2.5）。
- * 要確認に答えが無いものがあれば、何も書かずに止める（半分だけ確定した状態を作らない）。
+ * ダイジェストを確定する（設計書 2.5）。
+ * 答えが揃っている下書きだけを記録し、まだ答えていない要確認は下書きのまま残す（2026-11-21 Rucolow）。
  * 確定したあと、担当選手全員の翌日のメニューを組む。
  */
 export async function confirmDigest(trainer: Trainer, answers: Record<string, DraftAnswer>) {
@@ -39,24 +42,31 @@ export async function confirmDigest(trainer: Trainer, answers: Record<string, Dr
     .order('created_at')
     .order('seq')
   if (error) throw error
-  if (!drafts?.length) return { confirmed: 0, rejected: 0, prescriptions: 0 }
+  if (!drafts?.length) return { confirmed: 0, rejected: 0, prescriptions: 0, left: 0 }
 
   const { data: own } = await db.from('player').select('id').eq('trainer_id', trainer.id)
   const ownIds = new Set((own ?? []).map((p) => p.id))
+  const activeNow = new Set((await activeEpisodes(trainer.id)).map((e) => e.player_id))
 
-  // 答えの検査（書く前に全部）
-  const plan = drafts.map((d) => {
-    const a = answers[d.id] ?? { action: 'confirm' as const }
+  // 記録するのは、画面で見て答えが揃っているものだけ。画面を開いた後に入った下書きや、答えていない要確認は残す
+  const ready = drafts.flatMap((d) => {
+    const a = answers[d.id]
+    if (!a) return []
     const seg = d.payload as InterpretedSegment
     const playerId = a.player_id ?? d.player_id
-    if (a.action === 'reject') return { d, a, seg, playerId }
-    if (!playerId && d.kind !== 'schedule') throw new ConfirmError('選手が決まっていない記録があります')
+    if (a.action === 'reject') return [{ d, a, seg, playerId }]
+    if (!playerId && d.kind !== 'schedule') return []
     if (playerId && !ownIds.has(playerId)) throw new ConfirmError('担当外の選手が選ばれています')
-    if (d.kind === 'injury' && (!a.protocol_id || !a.menu_row_id)) throw new ConfirmError('新しい怪我のプロトコルと時期を選んでください')
-    if (d.kind === 'menu_row' && !a.menu_row_id) throw new ConfirmError('メニューの時期を選んでください')
-    if (d.kind === 'schedule' && !a.accept_schedule) throw new ConfirmError('日程の変更を反映するか選んでください')
-    return { d, a, seg, playerId }
+    if (d.kind === 'injury' && (!a.protocol_id || !a.menu_row_id)) return []
+    if (d.kind === 'menu_row' && !a.menu_row_id) return []
+    if (d.kind === 'schedule' && !a.accept_schedule) return []
+    if (d.kind === 'karte' && seg.returned && playerId && activeNow.has(playerId) && a.close_episode === undefined) return []
+    return [{ d, a, seg, playerId }]
   })
+  // 時期の変更は、進行中の怪我があるか、同じ回に新しい怪我を記録する選手の分だけ
+  const newInjury = new Set(ready.filter((p) => p.d.kind === 'injury' && p.a.action !== 'reject').map((p) => p.playerId))
+  const plan = ready.filter((p) => p.d.kind !== 'menu_row' || p.a.action === 'reject' || activeNow.has(p.playerId!) || newInjury.has(p.playerId))
+  if (plan.length === 0) return { confirmed: 0, rejected: 0, prescriptions: 0, left: drafts.length }
 
   const now = new Date().toISOString()
   const order = { injury: 0, menu_row: 1, karte: 2, schedule: 3 } as const
@@ -101,6 +111,8 @@ export async function confirmDigest(trainer: Trainer, answers: Record<string, Dr
         confirmed_by: trainer.id,
       })
       if (e2) throw e2
+      // 復帰の話に「復帰にする」と答えたとき: 怪我を閉じて故障者リストから外す（記録は残す）
+      if (seg.returned && a.close_episode && ep) await closeEpisode(db, ep.id, d.local_date)
     }
     if (d.kind === 'schedule') {
       if (!seg.kickoff_at) throw new ConfirmError('新しい試合の日時が読めませんでした')
@@ -147,5 +159,6 @@ export async function confirmDigest(trainer: Trainer, answers: Record<string, Dr
     confirmed: plan.filter((p) => p.a.action !== 'reject').length,
     rejected: plan.filter((p) => p.a.action === 'reject').length,
     prescriptions,
+    left: drafts.length - plan.length,
   }
 }

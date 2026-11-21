@@ -1,9 +1,10 @@
 'use client'
 import { useActionState, useEffect, useState, useTransition } from 'react'
-import { ArrowDown, ArrowUp, Eye, EyeOff, ImagePlus, ListChecks, Plus, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowDown, ArrowUp, CircleCheck, Eye, EyeOff, ImagePlus, ListChecks, Pencil, Plus, X } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { addKarte, setKarteFields, setWatching, type FormState } from '@/app/(trainer)/players/[id]/actions'
+import { addKarte, removePlayer, returnFromInjury, setKarteFields, setWatching, undoReturn, updatePlayer, type FormState } from '@/app/(trainer)/players/[id]/actions'
 
 const field = 'oa-kfinput w-full'
 const label = 'mb-1 block text-2xs text-navy-300'
@@ -82,5 +83,88 @@ export function KarteFieldsButton({ playerId, fields }: { playerId: string; fiel
       </div>
       {msg && <p role="alert" className="text-sm text-red-400">{msg}</p>}
     </div>
+  </Modal>
+}
+
+/** 怪我から復帰にする。故障者リストから外し、記録は残す */
+export function ReturnButton({ playerId, episodeId, label }: { playerId: string; episodeId: string; label: string }) {
+  const [open, setOpen] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+  return <Modal open={open} onOpenChange={(n) => { setOpen(n); if (!n) setMsg(null) }} title="復帰にする" busy={pending}
+    trigger={<button type="button" className="oa-button"><CircleCheck size={16} strokeWidth={2} aria-hidden="true" />復帰にする</button>}
+    footer={<>
+      <Button variant="secondary" disabled={pending} onClick={() => setOpen(false)}>やめる</Button>
+      <Button variant="primary" disabled={pending} onClick={() => start(async () => {
+        const r = await returnFromInjury(playerId, episodeId)
+        if (r.ok) setOpen(false); else setMsg(r.message)
+      })}>{pending ? '保存しています…' : '復帰にする'}</Button>
+    </>}>
+    <div className="space-y-2 text-sm text-navy-200">
+      <p className="font-bold text-white">{label}</p>
+      <p>今日で復帰にします。故障者リストから外れ、メニューの配信が止まります。</p>
+      <p>怪我とカルテの記録は残り、この選手の画面の「過去の怪我」でいつでも見られます。</p>
+      {msg && <p role="alert" className="text-red-400">{msg}</p>}
+    </div>
+  </Modal>
+}
+
+/** 復帰の取り消し（押し間違いのため） */
+export function UndoReturnButton({ playerId, episodeId }: { playerId: string; episodeId: string }) {
+  const [pending, start] = useTransition()
+  const [asked, setAsked] = useState(false)
+  if (!asked) return <button type="button" className="text-2xs text-navy-400 underline-offset-2 hover:text-white hover:underline" onClick={() => setAsked(true)}>復帰を取り消す</button>
+  return <span className="flex items-center gap-3 text-2xs">
+    <button type="button" disabled={pending} className="font-bold text-amber-400 hover:text-amber-300" onClick={() => start(async () => { await undoReturn(playerId, episodeId); setAsked(false) })}>{pending ? '戻しています…' : '離脱に戻す'}</button>
+    <button type="button" disabled={pending} className="text-navy-400 hover:text-white" onClick={() => setAsked(false)}>やめる</button>
+  </span>
+}
+
+/** 選手の名前・呼び方・チームを直す。名簿から外すのもここ */
+export function EditPlayerButton({ playerId, family, given, aliases, team, teams }: { playerId: string; family: string; given: string; aliases: string[]; team: string | null; teams: string[] }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [v, setV] = useState({ family, given, aliases: aliases.join('、'), team: team ?? '' })
+  const [removing, setRemoving] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+  useEffect(() => { if (open) { setV({ family, given, aliases: aliases.join('、'), team: team ?? '' }); setRemoving(false); setMsg(null) } }, [open, family, given, aliases, team])
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value })
+  return <Modal open={open} onOpenChange={setOpen} title="選手の情報を直す" busy={pending}
+    trigger={<button type="button" className="oa-button"><Pencil size={16} strokeWidth={2} aria-hidden="true" />直す</button>}
+    footer={removing
+      ? <>
+          <Button variant="secondary" disabled={pending} onClick={() => setRemoving(false)}>やめる</Button>
+          <Button variant="primary" disabled={pending} onClick={() => start(async () => {
+            const r = await removePlayer(playerId)
+            if (r.ok) router.push('/players'); else setMsg(r.message)
+          })}>{pending ? '外しています…' : '名簿から外す'}</Button>
+        </>
+      : <>
+          <Button variant="ghost" disabled={pending} onClick={() => setRemoving(true)}>名簿から外す</Button>
+          <Button variant="primary" disabled={pending || !v.family.trim() || !v.given.trim()} onClick={() => start(async () => {
+            const r = await updatePlayer(playerId, v)
+            if (r.ok) setOpen(false); else setMsg(r.message)
+          })}>{pending ? '保存しています…' : '保存する'}</Button>
+        </>}>
+    {removing
+      ? <div className="space-y-2 text-sm text-navy-200">
+          <p className="font-bold text-white">{family} {given} を名簿から外します。</p>
+          <p>一覧・チーム・音声メモの聞き分けに出なくなり、選手の画面のリンクも開かなくなります。カルテなどの記録は消えません。</p>
+          {msg && <p role="alert" className="text-red-400">{msg}</p>}
+        </div>
+      : <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={label} htmlFor="ep-family">姓</label><input id="ep-family" value={v.family} onChange={set('family')} className={field} /></div>
+            <div><label className={label} htmlFor="ep-given">名</label><input id="ep-given" value={v.given} onChange={set('given')} className={field} /></div>
+          </div>
+          <div><label className={label} htmlFor="ep-aliases">呼び方（音声メモで呼ぶ名前。読点で区切る）</label><input id="ep-aliases" value={v.aliases} onChange={set('aliases')} placeholder="ケンタ、健太くん" className={field} /></div>
+          <div>
+            <label className={label} htmlFor="ep-team">チーム</label>
+            <input id="ep-team" list="ep-teams" value={v.team} onChange={set('team')} className={field} />
+            <datalist id="ep-teams">{teams.map((t) => <option key={t} value={t} />)}</datalist>
+          </div>
+          {msg && <p role="alert" className="text-sm text-red-400">{msg}</p>}
+        </div>}
   </Modal>
 }

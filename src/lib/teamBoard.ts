@@ -17,6 +17,8 @@ export interface BoardEvent {
   detail: string | null
   movedFrom: string | null
   score: { for: number; against: number } | null
+  /** 直すときに使う元の値 */
+  raw: { opponent: string; venue: string; homeAway: string; note: string }
   /** この日に全て参加できない選手（離脱・一部参加） */
   limits: { id: string; name: string; joinable: string[] }[]
 }
@@ -102,6 +104,7 @@ export async function loadTeamBoard(teamId: string, tz: string, range: { from: s
         detail: [e.kind === 'match' && e.home_away ? (e.home_away === 'home' ? 'ホーム' : 'アウェイ') : null, e.venue, e.note].filter(Boolean).join(' ・ ') || null,
         movedFrom: movedFrom.get(e.id) ?? null,
         score: e.score_for !== null && e.score_against !== null ? { for: e.score_for, against: e.score_against } : null,
+        raw: { opponent: e.opponent ?? '', venue: e.venue ?? '', homeAway: e.home_away ?? '', note: e.note ?? '' },
         limits,
       }
     })
