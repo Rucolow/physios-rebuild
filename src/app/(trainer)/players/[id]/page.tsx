@@ -29,10 +29,6 @@ const PART = {
   out: { word: '離脱', tone: 'oa-part--out' },
 } as const
 
-function slashDate(iso: string) {
-  const [y, m, d] = iso.split('-')
-  return `${Number(m)}/${Number(d)}/${y}`
-}
 
 export default async function PlayerDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; d?: string; scale?: string }> }) {
   const [{ id }, { tab: tabParam, d, scale }] = await Promise.all([params, searchParams])
@@ -111,7 +107,7 @@ function ReturnCard({ head }: { head: PlayerHead }) {
       <div className="oa-retrow">
         <div className="oa-retleft">
           <div className="oa-reticon"><CalendarDays size={16} strokeWidth={2} aria-hidden="true" /></div>
-          <div><p className="oa-retlabel">全て合流できる見込み</p><p className="oa-retdate"><Num>{slashDate(target)}</Num></p></div>
+          <div><p className="oa-retlabel">全て合流できる見込み</p><p className="oa-retdate"><Num>{mdw(target)}</Num></p></div>
         </div>
         <span className="oa-retpill">{over ? <><Num>{-remaining}</Num> 日超過</> : <>あと <Num>{remaining}</Num> 日</>}</span>
       </div>
@@ -243,7 +239,7 @@ async function Report({ head, scale }: { head: PlayerHead; scale: ReportScale })
       <Bars title="痛み（0〜6）" value={(b) => b.pain} max={6} tone="bg-red-400" />
       <Bars title="疲労（0〜6）" value={(b) => b.fatigue} max={6} tone="bg-amber-400" />
       <div className={cn('flex', thin ? 'gap-px' : 'gap-1.5')}>
-        {r.buckets.map((b, i) => <Num key={b.key} mono className="flex-1 text-center text-2xs text-navy-500">{!thin || i % 5 === 0 || i === r.buckets.length - 1 ? b.label : ''}</Num>)}
+        {r.buckets.map((b, i) => <Num key={b.key} mono className="min-w-0 flex-1 whitespace-nowrap text-center text-2xs text-navy-500">{!thin || i % 5 === 0 || i === r.buckets.length - 1 ? b.label : ''}</Num>)}
       </div>
     </div>
     {r.comments.length > 0 && <div className="mt-5 space-y-2">

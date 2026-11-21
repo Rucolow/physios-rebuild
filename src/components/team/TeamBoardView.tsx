@@ -69,7 +69,7 @@ function Rejoins({ players, today, playerHref }: { players: BoardPlayer[]; today
                     <div className="flex gap-1" aria-hidden="true">
                       {p.steps.map((s, i) => <span key={i} className={cn('h-1.5 flex-1 rounded-pill', s.reached ? 'bg-emerald-400' : 'bg-layer-10')} />)}
                     </div>
-                    <p className="mt-1.5 truncate text-2xs text-navy-300">
+                    <p className="mt-1.5 text-2xs text-navy-300">
                       {p.steps.some((s) => s.reached) ? `参加できる: ${p.steps.filter((s) => s.reached).map((s) => s.name).join('・')}` : 'チームの練習には不参加'}
                       {next?.date && <span className="text-navy-400"> ／ 次 {next.name}　<Num>{mdw(next.date)}</Num>〜</span>}
                     </p>

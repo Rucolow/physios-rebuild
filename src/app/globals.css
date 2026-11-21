@@ -145,6 +145,9 @@
   .bottom-fab { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 1rem); }
   /* 画面下固定バーの下端。モバイルは下部ナビの直上に載せる */
   .bottom-actionbar { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
+  /* 下部ナビの上の固定バー。中央の録音ボタンは 1.5rem はみ出すので、その分も空ける。タブレット以上は左のナビなので画面の下端 */
+  .bottom-above-nav { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 1.5rem); }
+  @media (min-width: 768px) { .bottom-above-nav { bottom: 0; } }
   /* 長押しの録音ボタン: iOS の長押しメニューと文字選択を出さない */
   .no-callout { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   /* 作り直し版は全ての幅で下部ナビ（中央に録音）を使う。≥md の録音 FAB とレールは持たない */

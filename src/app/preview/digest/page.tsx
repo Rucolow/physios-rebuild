@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { DigestView, type DigestItem, type DigestContext } from '@/components/trainer/DigestView'
 import { TrainerNav } from '@/components/trainer/TrainerNav'
+import { RecorderProvider } from '@/components/trainer/RecorderProvider'
 import type { InterpretedSegment } from '@/lib/llm/interpret'
 
 /** 夜のダイジェストの見本（架空のデータ）。方向の確定のためだけに置く。本番では PHYSIOS_PREVIEW=1 のときだけ開く */
@@ -47,11 +48,13 @@ export default function PreviewDigest() {
       seg: seg({ kind: 'schedule', summary: '土曜の練習試合が日曜 15 時に変更。', kickoff_at: '2026-11-08T15:00:00+01:00', schedule_note: '練習試合' }) },
   ]
   return (
-    <div className="min-h-screen shell-bg text-navy-100">
-      <div className="pb-nav">
+    <RecorderProvider>
+    <div className="min-h-screen shell-bg text-navy-100 md:pl-rail">
+      <div className="pb-nav md:pb-0">
         <DigestView preview dateLabel={{ full: '2026年11月4日', wd: '水曜日' }} pending={items} resolved={[]} failed={[]} ctx={ctx} />
       </div>
       <TrainerNav />
     </div>
+    </RecorderProvider>
   )
 }

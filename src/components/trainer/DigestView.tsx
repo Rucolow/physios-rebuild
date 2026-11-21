@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Pause, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -9,6 +9,9 @@ import { StateWord } from '@/components/ui/StateWord'
 import { confirmAction, reprocessAction } from '@/app/(trainer)/digest/actions'
 import type { InterpretedSegment } from '@/lib/llm/interpret'
 import type { DraftAnswer } from '@/lib/confirm'
+
+const ANSWERS_KEY = 'physios:digest-answers'
+const md = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
 
 export interface DigestItem {
   id: string
@@ -38,7 +41,7 @@ interface Props {
   dateLabel: { full: string; wd: string }
   pending: DigestItem[]
   resolved: DigestItem[]
-  failed: { id: string; time: string; audioUrl: string | null }[]
+  failed: { id: string; time: string; audioUrl: string | null; silent?: boolean; typed?: boolean }[]
   ctx: DigestContext
   /** 見本の表示。確定を押しても書かない */
   preview?: boolean
@@ -79,6 +82,27 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
   const set = (id: string, patch: Partial<DraftAnswer>) =>
     setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))
 
+  // 答えは記録するまで端末に残す（途中で画面を離れたり読み込み直したりしても消えないように）
+  const restored = useRef(false)
+  useEffect(() => {
+    if (preview) return
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(ANSWERS_KEY) ?? '{}') as Record<string, DraftAnswer>
+      const ids = new Set(pending.map((it) => it.id))
+      const keep = Object.fromEntries(Object.entries(saved).filter(([id]) => ids.has(id)))
+      if (Object.keys(keep).length) setAnswers((prev) => ({ ...prev, ...keep }))
+    } catch {}
+    restored.current = true
+    // 開いたときに一度だけ読む
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    if (preview || !restored.current) return
+    try {
+      window.localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers))
+    } catch {}
+  }, [answers, preview])
+
   const needs = pending.filter((it) => it.reason !== null)
   const open = pending.filter((it) => unanswered(it, answers[it.id]))
   const carried = pending.filter((it) => it.carried).length
@@ -101,6 +125,9 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
     start(async () => {
       const r = await confirmAction(answers)
       if (r.ok) {
+        try {
+          window.localStorage.removeItem(ANSWERS_KEY)
+        } catch {}
         setResult(
           `${r.confirmed} 件を記録しました。` +
             (r.prescriptions ? `明日のメニューを ${r.prescriptions} 人分組みました。` : ''),
@@ -124,9 +151,9 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
             ) : (
               <>
                 下書き <Num>{pending.length}</Num> 件。読んで、
-                {needs.length ? (
+                {open.length ? (
                   <>
-                    <Num>{needs.length}</Num> 箇所だけ確認してください。
+                    あと <Num>{open.length}</Num> 箇所だけ確認してください。
                   </>
                 ) : (
                   'よければ記録してください。'
@@ -136,12 +163,18 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
           </p>
         </section>
 
+        {result && pending.length === 0 && (
+          <p role="status" className="rounded-field border border-layer-10 bg-layer-5 px-4 py-3 text-sm text-navy-100">
+            {result}
+          </p>
+        )}
+
         {carried > 0 && (
           <div className="flex w-full items-center gap-3 rounded-field border border-gold-500/30 bg-gold-500/10 px-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-white">前の日の下書きが残っています</p>
               <p className="text-2xs text-navy-300">
-                <Num>{carried}</Num> 件。今日の分と一緒に記録できます。
+                <Num>{carried}</Num> 件。日付の付いた行です。今日の分と一緒に記録できます。
               </p>
             </div>
           </div>
@@ -157,14 +190,14 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
 
         {failed.length > 0 && (
           <section className="space-y-2">
-            <h2 className="text-base font-bold text-white">処理できなかった録音</h2>
+            <h2 className="text-base font-bold text-white">処理できなかったメモ</h2>
             <div className="glass overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
               {failed.map((m) => (
                 <div key={m.id} className="flex items-center gap-4 px-5 py-3">
                   <span className="min-w-11 shrink-0 font-mono text-sm text-navy-400 nums">{m.time}</span>
-                  <p className="min-w-0 flex-1 text-sm text-navy-200">文字起こしか解釈に失敗しました。</p>
-                  {m.audioUrl && <AudioButton url={m.audioUrl} start={0} />}
-                  <RetryButton memoId={m.id} />
+                  <p className="min-w-0 flex-1 text-sm text-navy-200">{m.silent ? '声が入っていませんでした。7 日たつと消えます。' : m.typed ? '文のメモを記録にできませんでした。' : '文字起こしか解釈に失敗しました。'}</p>
+                  {m.audioUrl && !m.silent && <AudioButton url={m.audioUrl} start={0} />}
+                  {!m.silent && <RetryButton memoId={m.id} />}
                 </div>
               ))}
             </div>
@@ -193,7 +226,7 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
       </div>
 
       {pending.length > 0 && (
-        <div className="fixed inset-x-0 bottom-above-nav z-header border-t border-layer-5 glass px-4 py-3">
+        <div className="fixed inset-x-0 bottom-above-nav z-header md:left-rail border-t border-layer-5 glass px-4 py-3">
           <div className="mx-auto flex max-w-read items-center gap-4">
             <button type="button" onClick={jumpToOpen} className="min-w-0 flex-1 text-left text-2xs text-navy-400" role="status">
               {result ?? (
@@ -243,7 +276,10 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
 
   return (
     <div id={`draft-${it.id}`} className={cn('flex scroll-mt-6 items-start gap-4 px-5 py-4', rejected && 'bg-layer-3')}>
-      <span className={cn('w-11 shrink-0 pt-0.5 font-mono text-sm nums', rejected ? 'text-navy-500' : 'text-navy-400')}>{it.time}</span>
+      <span className={cn('w-11 shrink-0 pt-0.5 font-mono text-sm nums', rejected ? 'text-navy-500' : 'text-navy-400')}>
+        {it.carried && <span className="block text-2xs text-gold-400">{md(it.localDate)}</span>}
+        {it.time}
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <p className={cn('min-w-0 flex-1 text-sm', rejected ? 'text-navy-400' : 'font-bold text-white')}>{title}</p>

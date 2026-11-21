@@ -115,6 +115,8 @@ export default async function DigestPage() {
         // 前の日のものは日付も付ける
         time: (m.local_date === today ? '' : `${Number(m.local_date.slice(5, 7))}/${Number(m.local_date.slice(8, 10))} `) + localTime(trainer.time_zone, m.recorded_at),
         audioUrl: m.storage_path ? (signed.get(m.storage_path) ?? null) : null,
+        silent: m.error === '声が入っていませんでした',
+        typed: !m.storage_path,
       }))}
       ctx={ctx}
     />
