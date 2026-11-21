@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { List, ListRow, Num } from '@/components/ui'
 import { AddTeamEventButton } from '@/components/trainer/AddTeamEventButton'
-import { AddTeamButton, ScoreButton } from '@/components/trainer/TeamTools'
+import { AddTeamButton, EditTeamButton, ScoreButton } from '@/components/trainer/TeamTools'
 import { CopyLink } from '@/components/trainer/CopyLink'
 import { headers } from 'next/headers'
 import { TeamBoardView, type BoardView } from '@/components/team/TeamBoardView'
@@ -56,7 +56,10 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">{current.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-white">{current.name}</h1>
+            <EditTeamButton key={current.id + current.name} teamId={current.id} name={current.name} />
+          </div>
           {board?.nextMatch && <p className="mt-2 text-sm text-navy-300">次の試合 <Num className="font-bold text-white">{mdw(board.nextMatch.date)}</Num> {board.nextMatch.title} ・ あと <Num className="font-bold text-white">{board.nextMatch.daysUntil}</Num> 日</p>}
         </div>
         {current.coach_token && <CopyLink url={`${origin}/c/${current.coach_token}`} openLabel="指導者の画面を開く" />}
@@ -68,7 +71,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       </div>
 
       {board && <TeamBoardView board={board} view={view} ym={ym} day={day} href={href} playerHref={(id) => `/players/${id}?tab=team`}
-        actions={<AddTeamEventButton teams={teams} currentTeamId={current.id} initialDate={day ?? today} variant="secondary" />} />}
+        actions={<AddTeamEventButton teams={teams} currentTeamId={current.id} initialDate={day ?? today} variant="secondary" />}
+        eventAction={(e) => <AddTeamEventButton key={`${e.id}-${e.date}-${e.time}-${e.kind}`} teams={teams} currentTeamId={current.id}
+          edit={{ id: e.id, date: e.date, kind: e.kind, time: e.time ?? '', ...e.raw }} />} />}
       {data && <Results data={data} />}
     </div>
   </main>

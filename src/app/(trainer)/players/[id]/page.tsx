@@ -10,7 +10,8 @@ import { cn } from '@/lib/cn'
 import { Num } from '@/components/ui/Num'
 import { CopyLink } from '@/components/trainer/CopyLink'
 import { WeekMenu } from '@/components/player-detail/WeekMenu'
-import { KarteButton, KarteFieldsButton, WatchButton } from '@/components/player-detail/PlayerTools'
+import { EditPlayerButton, KarteButton, KarteFieldsButton, ReturnButton, UndoReturnButton, WatchButton } from '@/components/player-detail/PlayerTools'
+import { listTeams } from '@/lib/team'
 import { KarteDateNav } from '@/components/player-detail/KarteDateNav'
 
 export const dynamic = 'force-dynamic'
@@ -36,6 +37,7 @@ export default async function PlayerDetail({ params, searchParams }: { params: P
   const trainer = await requireTrainer()
   const head = await loadPlayerHead(trainer, id)
   if (!head) notFound()
+  const teams = await listTeams(trainer.id)
   const h = await headers()
   const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`
   const part = head.participation ? PART[head.participation] : { word: '合流の目安なし', tone: 'oa-part--unset' }
@@ -66,8 +68,28 @@ export default async function PlayerDetail({ params, searchParams }: { params: P
               <div className="oa-lgap" />
               {head.expectedReturn && <ReturnCard head={head} />}
               <div className="flex flex-wrap gap-2 px-5 pb-5">
+                {head.active.length === 1 && <ReturnButton playerId={head.id} episodeId={head.active[0].id} label={head.active[0].label} />}
                 <WatchButton playerId={head.id} watching={head.watching} />
+                <EditPlayerButton playerId={head.id} family={head.familyName} given={head.givenName} aliases={head.aliases} team={head.team} teams={teams.map((t) => t.name)} />
               </div>
+              {head.active.length > 1 && <div className="space-y-2 px-5 pb-5">
+                {head.active.map((e) => <div key={e.id} className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 text-sm text-navy-200">{e.label}</span>
+                  <ReturnButton playerId={head.id} episodeId={e.id} label={e.label} />
+                </div>)}
+              </div>}
+              {head.past.length > 0 && <div className="border-t border-layer-5 px-5 py-4">
+                <h2 className="text-2xs font-bold text-navy-300">過去の怪我</h2>
+                <ul className="mt-2 space-y-3">
+                  {head.past.map((e) => <li key={e.id}>
+                    <p className="text-sm text-white">{e.label}</p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-2xs text-navy-400">
+                      <Num>受傷 {ymd(e.injuredOn)}{e.closedOn ? ` ・ 復帰 ${ymd(e.closedOn)}` : ' ・ 復帰済み'}</Num>
+                      <UndoReturnButton playerId={head.id} episodeId={e.id} />
+                    </p>
+                  </li>)}
+                </ul>
+              </div>}
             </div>
 
             <div className="oa-lcard p-5">
@@ -165,6 +187,7 @@ async function Chart({ head, date }: { head: PlayerHead; date?: string }) {
 }
 
 const WDS = ['日', '月', '火', '水', '木', '金', '土']
+const ymd = (iso: string) => `${iso.slice(0, 4)}/${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
 const mdw = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8))}（${WDS[new Date(`${iso}T00:00:00Z`).getUTCDay()]}）`
 
 async function Team({ head, tz }: { head: PlayerHead; tz: string }) {

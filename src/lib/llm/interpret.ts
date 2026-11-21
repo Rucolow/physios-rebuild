@@ -35,6 +35,8 @@ const Segment = z.object({
   schedule_note: z.string().nullable(),
   /** 痛みの急な増悪・外傷の疑い・メンタル面の兆候 */
   alert: z.string().nullable(),
+  /** karte: 選手が怪我から復帰した（リハビリを終えた・故障者リストから外す）とトレーナーが話したときだけ true */
+  returned: z.boolean(),
 })
 
 const Output = z.object({ segments: z.array(Segment) })
@@ -73,6 +75,7 @@ const SYSTEM = `あなたはスポーツフィジオ（理学療法士・トレ�
   - menu_row: リハビリの時期（メニューの段階）を進める・戻す、と話したとき。menu_row_index は、その選手の行の一覧から、話した内容に当たる行の row_index。決められなければ null。
   - schedule: 試合の日程が変わった、と話したとき。kickoff_at は新しい日時。
 - 一つの発言が karte と menu_row の両方を含むときは、両方の segment を作る。
+- returned は、その選手が怪我から完全に復帰した・リハビリを終えた・故障者リストから外す、とトレーナーがはっきり話した karte の segment だけ true にする。「部分合流」「そろそろ復帰できそう」「来週復帰の予定」は false。迷ったら false。
 - alert は、痛みの急な増悪・外傷の疑い・メンタル面の兆候を話したときだけ、その内容を短く書く。
 - summary は、トレーナーが夜に読み返す一行。体言止めでよい。敬語や前置きは要らない。
 - 文字起こしの誤りで意味が通らない語（特に痛みや回数などの数値）は、それらしい値や「軽度」などの程度の言葉で置き換えない。summary と各項目の両方に「聞き取り不明（原文: 見くらい）」のように原文のまま残す。夜に読み返すのは summary なので、summary から落とさない。`

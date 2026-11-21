@@ -11,7 +11,7 @@ export default function PreviewDigest() {
   const seg = (p: Partial<InterpretedSegment>): InterpretedSegment => ({
     kind: 'karte', player_id: null, candidates: [], player_basis: '', summary: '', subjective: null, objective: null,
     assessment: null, treatment: null, plan: null, start_sec: 0, menu_row_index: null, protocol_candidates: [],
-    injured_on: null, kickoff_at: null, schedule_note: null, alert: null, ...p,
+    injured_on: null, kickoff_at: null, schedule_note: null, alert: null, returned: false, ...p,
   })
   const rows = (pid: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: `${pid}-r${i + 1}`, row_index: i + 1, week_hint: i + 1, period_raw: `${i + 1}週目〜` }))
   const ctx: DigestContext = {

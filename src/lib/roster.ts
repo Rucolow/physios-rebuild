@@ -21,6 +21,8 @@ export async function activeEpisodes(trainerId: string): Promise<EpisodeState[]>
     .select('id, player_id, label, injured_on, protocol_id, protocol:protocol_id(title), player!inner(trainer_id)')
     .eq('status', 'active')
     .eq('player.trainer_id', trainerId)
+    // 名簿から外した選手の怪我は数えない
+    .eq('player.is_active', true)
     .order('created_at')
   if (error) throw error
   const ids = (eps ?? []).map((e) => e.id)

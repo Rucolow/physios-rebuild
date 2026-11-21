@@ -13,7 +13,9 @@ const WD = ['日', '月', '火', '水', '木', '金', '土']
  * チームの予定と合流の見込み。トレーナーのチーム画面と指導者の画面で同じものを出す。
  * href は表示の切り替え（view・ym・day）の URL を作る。
  */
-export function TeamBoardView({ board, view, ym, day, href, playerHref, actions }: {
+type EventAction = (e: BoardEvent) => ReactNode
+
+export function TeamBoardView({ board, view, ym, day, href, playerHref, actions, eventAction }: {
   board: TeamBoard
   view: BoardView
   ym: string
@@ -21,6 +23,8 @@ export function TeamBoardView({ board, view, ym, day, href, playerHref, actions 
   href: (q: { view?: BoardView; ym?: string; day?: string }) => string
   playerHref?: (id: string) => string
   actions?: ReactNode
+  /** 予定ごとの操作（トレーナーの画面だけ。指導者の画面には渡さない） */
+  eventAction?: EventAction
 }) {
   return <div className="space-y-8">
     <Rejoins players={board.players} today={board.today} playerHref={playerHref} />
@@ -33,8 +37,8 @@ export function TeamBoardView({ board, view, ym, day, href, playerHref, actions 
         <div className="ml-auto">{actions}</div>
       </div>
       {view === 'timeline'
-        ? <Timeline board={board} playerHref={playerHref} />
-        : <Calendar board={board} ym={ym} day={day} href={href} playerHref={playerHref} />}
+        ? <Timeline board={board} playerHref={playerHref} eventAction={eventAction} />
+        : <Calendar board={board} ym={ym} day={day} href={href} playerHref={playerHref} eventAction={eventAction} />}
     </section>
   </div>
 }
@@ -86,7 +90,7 @@ function Rejoins({ players, today, playerHref }: { players: BoardPlayer[]; today
   </section>
 }
 
-function EventLine({ e, playerHref }: { e: BoardEvent; playerHref?: (id: string) => string }) {
+function EventLine({ e, playerHref, eventAction }: { e: BoardEvent; playerHref?: (id: string) => string; eventAction?: EventAction }) {
   const out = e.limits.filter((l) => l.joinable.length === 0)
   const part = e.limits.filter((l) => l.joinable.length > 0)
   return <div className="flex gap-3 px-4 py-3">
@@ -104,6 +108,7 @@ function EventLine({ e, playerHref }: { e: BoardEvent; playerHref?: (id: string)
         {part.map((l) => <p key={l.id} className="text-amber-400">一部参加 <span className="text-navy-200">{playerHref ? <Link href={playerHref(l.id)} className="hover:text-white">{l.name}</Link> : l.name}（{l.joinable.join('・')}）</span></p>)}
       </div>}
     </div>
+    {eventAction?.(e)}
   </div>
 }
 
@@ -114,28 +119,28 @@ function JoinLine({ j, playerHref }: { j: BoardJoin; playerHref?: (id: string) =
   </div>
 }
 
-function DayBlock({ date, today, events, joins, playerHref }: { date: string; today: string; events: BoardEvent[]; joins: BoardJoin[]; playerHref?: (id: string) => string }) {
+function DayBlock({ date, today, events, joins, playerHref, eventAction }: { date: string; today: string; events: BoardEvent[]; joins: BoardJoin[]; playerHref?: (id: string) => string; eventAction?: EventAction }) {
   return <div className={cn('overflow-hidden rounded-card border', date === today ? 'border-gold-500' : 'border-layer-10')}>
     <p className={cn('border-b border-layer-5 px-4 py-2 text-sm font-bold', date === today ? 'text-gold-400' : 'text-navy-200')}>
       <Num>{mdw(date)}</Num>{date === today && ' 今日'}
     </p>
     <div className="divide-y divide-layer-5">
       {joins.map((j) => <JoinLine key={j.playerId + j.date} j={j} playerHref={playerHref} />)}
-      {events.map((e) => <EventLine key={e.id} e={e} playerHref={playerHref} />)}
+      {events.map((e) => <EventLine key={e.id} e={e} playerHref={playerHref} eventAction={eventAction} />)}
       {joins.length === 0 && events.length === 0 && <p className="px-4 py-3 text-sm text-navy-500">予定はありません</p>}
     </div>
   </div>
 }
 
-function Timeline({ board, playerHref }: { board: TeamBoard; playerHref?: (id: string) => string }) {
+function Timeline({ board, playerHref, eventAction }: { board: TeamBoard; playerHref?: (id: string) => string; eventAction?: EventAction }) {
   const dates = [...new Set([...board.events.map((e) => e.date), ...board.joins.map((j) => j.date)])].filter((d) => d >= board.today).sort()
   if (dates.length === 0) return <p className="text-sm text-navy-400">これからの予定はありません。</p>
   return <div className="space-y-3">
-    {dates.map((d) => <DayBlock key={d} date={d} today={board.today} events={board.events.filter((e) => e.date === d)} joins={board.joins.filter((j) => j.date === d)} playerHref={playerHref} />)}
+    {dates.map((d) => <DayBlock key={d} date={d} today={board.today} events={board.events.filter((e) => e.date === d)} joins={board.joins.filter((j) => j.date === d)} playerHref={playerHref} eventAction={eventAction} />)}
   </div>
 }
 
-function Calendar({ board, ym, day, href, playerHref }: { board: TeamBoard; ym: string; day: string | null; href: (q: { view?: BoardView; ym?: string; day?: string }) => string; playerHref?: (id: string) => string }) {
+function Calendar({ board, ym, day, href, playerHref, eventAction }: { board: TeamBoard; ym: string; day: string | null; href: (q: { view?: BoardView; ym?: string; day?: string }) => string; playerHref?: (id: string) => string; eventAction?: EventAction }) {
   const first = `${ym}-01`
   const start = addDays(first, -new Date(`${first}T00:00:00Z`).getUTCDay())
   const cells = Array.from({ length: 42 }, (_, i) => addDays(start, i))
@@ -168,7 +173,7 @@ function Calendar({ board, ym, day, href, playerHref }: { board: TeamBoard; ym: 
     </div>
     <div>
       {sel
-        ? <DayBlock date={sel} today={board.today} events={board.events.filter((e) => e.date === sel)} joins={board.joins.filter((j) => j.date === sel)} playerHref={playerHref} />
+        ? <DayBlock date={sel} today={board.today} events={board.events.filter((e) => e.date === sel)} joins={board.joins.filter((j) => j.date === sel)} playerHref={playerHref} eventAction={eventAction} />
         : <p className="text-sm text-navy-400">日付を選ぶと、その日の予定と参加できる選手が出ます。</p>}
     </div>
   </div>

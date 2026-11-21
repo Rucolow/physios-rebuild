@@ -1,4 +1,6 @@
+
 import 'server-only'
+import { searchMatches } from '@/lib/search'
 import { adminDb } from '@/lib/supabase/server'
 import type { Trainer } from '@/lib/auth'
 
@@ -192,7 +194,7 @@ export async function loadKnowledge(trainer: Trainer, query: string) {
     articleId: a.id,
     bookmarked: marked.has(a.id),
   })
-  const match = (text: string) => !q || text.toLowerCase().includes(q)
+  const match = (text: string) => !q || searchMatches(text, q)
   let brucke = (articles ?? []).filter((a) => a.source === 'brucke' && isRelevantBrucke(a.category))
   let mine = (articles ?? []).filter((a) => a.source === 'trainer')
   if (q) {
