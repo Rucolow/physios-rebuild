@@ -34,6 +34,8 @@ export async function transcribe(audio: ArrayBuffer, mimeType: string, keyterms:
     smart_format: 'true',
     punctuate: 'true',
     utterances: 'true',
+    // 選手の所見を含む音声なので、Deepgram のモデル改善（学習）に使わせず、処理の後に残させない
+    mip_opt_out: 'true',
   })
   if (language) params.set('language', language)
   else params.set('detect_language', 'true')

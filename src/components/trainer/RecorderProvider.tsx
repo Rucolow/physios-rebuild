@@ -9,11 +9,18 @@ type State = 'idle' | 'starting' | 'recording' | 'processing'
 const MAX_SEC = 180
 /** これより短い押下は誤って触れたものとして送らない（ミリ秒） */
 const MIN_HOLD_MS = 700
+/** 録音を始めてからこの時間、音が一度も届かなければ知らせる（ミリ秒） */
+const SILENT_AFTER_MS = 1500
+/** 無音と見なす振れ幅（0〜128）。OS がマイクを止めていると 0 のまま動かない */
+const SILENT_PEAK = 1
+const SILENT_MESSAGE = 'マイクから音が届いていませんでした。端末の設定で、このブラウザのマイクの許可と、入力に選ばれている機器を確かめてください。'
 
 interface RecorderApi {
   state: State
   sec: number
   level: number
+  /** 録音を始めてから一度も音が届いていない（マイクが無音を返している） */
+  silent: boolean
   /** 押し始め。マイクの用意ができてから録音が始まる */
   press: () => void
   /** 指を離した。録音中なら止めて送る */
@@ -45,6 +52,7 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>('idle')
   const [sec, setSec] = useState(0)
   const [level, setLevel] = useState(0)
+  const [silent, setSilent] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [typing, setTyping] = useState(false)
   const [text, setText] = useState('')
@@ -62,13 +70,14 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
   }, [message])
 
   const send = useCallback(
-    async (body: FormData) => {
+    async (body: FormData, wasSilent = false) => {
       setState('processing')
       try {
         const res = await fetch('/api/memo', { method: 'POST', body })
         const json = (await res.json().catch(() => null)) as { message: string } | null
         // 受け取った後にサーバが時間切れになったときは JSON が返らない。録音は先に保存してあり、ダイジェストに「やり直す」で出る
-        setMessage(json?.message ?? '処理が途中で止まりました。録音は残っていて、ダイジェストからやり直せます。')
+        // 判定を誤っても録音を失わないよう、無音に見えた録音も送ってから知らせる
+        setMessage(wasSilent ? SILENT_MESSAGE : (json?.message ?? '処理が途中で止まりました。録音は残っていて、ダイジェストからやり直せます。'))
         router.refresh()
       } catch {
         setMessage('いま記録の処理ができません。録音は残っていません。もう一度お試しください。')
@@ -112,11 +121,21 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
     ctx.createMediaStreamSource(stream).connect(analyser)
     const buf = new Uint8Array(analyser.fftSize)
     let raf = 0
+    let maxPeak = 0
+    // 音量を測れている時間だけで無音を判定する。AudioContext が止まったまま（iOS で起きる）だと値が動かず、
+    // 本当は録れている録音を無音と見誤るので、動き出した時刻から数える
+    let measuringSince = 0
+    const noSound = () => measuringSince > 0 && Date.now() - measuringSince > SILENT_AFTER_MS && maxPeak <= SILENT_PEAK
+    void ctx.resume().catch(() => {})
+    setSilent(false)
     const tick = () => {
+      if (ctx.state === 'running' && !measuringSince) measuringSince = Date.now()
       analyser.getByteTimeDomainData(buf)
       let peak = 0
       for (const v of buf) peak = Math.max(peak, Math.abs(v - 128))
+      maxPeak = Math.max(maxPeak, peak)
       setLevel(Math.min(1, peak / 64))
+      setSilent(noSound())
       raf = requestAnimationFrame(tick)
     }
     tick()
@@ -143,7 +162,7 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
       const type = r.mimeType || mime || 'audio/webm'
       const fd = new FormData()
       fd.append('audio', new Blob(chunks.current, { type }), 'memo')
-      void send(fd)
+      void send(fd, noSound())
     }
     rec.current = r
     r.start()
@@ -167,7 +186,7 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Ctx.Provider value={{ state, sec, level, press: () => void press(), release, openText: () => setTyping(true) }}>
+    <Ctx.Provider value={{ state, sec, level, silent, press: () => void press(), release, openText: () => setTyping(true) }}>
       {children}
       {message && state === 'idle' && (
         <p

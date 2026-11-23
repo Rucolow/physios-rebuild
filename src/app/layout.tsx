@@ -8,6 +8,10 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500'
 
 export const metadata: Metadata = {
   title: 'PHYSIOS',
+  // ホーム画面に足したときの名前とアイコン。start_url は書かない（選手は自分のリンク、トレーナーは開いていた画面から始まる）
+  manifest: '/manifest.webmanifest',
+  icons: { icon: '/icons/icon-192.png', apple: '/icons/icon-192.png' },
+  appleWebApp: { capable: true, title: 'PHYSIOS', statusBarStyle: 'black' },
   robots: { index: false, follow: false },
 }
 

@@ -7,6 +7,7 @@ import { Num } from '@/components/ui/Num'
 import { cn } from '@/lib/utils'
 import { NAV_LEFT, NAV_RIGHT, type TrainerNavEntry } from './nav'
 import { useRecorder } from './RecorderProvider'
+import { SIGNAL } from '@/lib/design/signal'
 
 function Item({ entry, active }: { entry: TrainerNavEntry; active: boolean }) {
   const Icon = entry.icon
@@ -30,7 +31,7 @@ function RailItem({ entry, active }: { entry: TrainerNavEntry; active: boolean }
 
 /** 長押ししている間だけ録音する中央のボタン */
 function HoldButton({ rail = false }: { rail?: boolean }) {
-  const { state, sec, level, press, release } = useRecorder()
+  const { state, sec, level, silent, press, release } = useRecorder()
   const active = state === 'recording' || state === 'starting'
   return (
     <div className={cn('relative flex justify-center', rail ? 'py-3' : 'flex-1')}>
@@ -39,9 +40,11 @@ function HoldButton({ rail = false }: { rail?: boolean }) {
           <Num mono className="text-sm font-bold text-white">
             {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, '0')}
           </Num>
-          <span className="h-2 w-16 overflow-hidden rounded-pill bg-navy-900">
-            <span className="block h-full bg-red-400" style={{ width: `${Math.round(level * 100)}%` }} />
-          </span>
+          {silent
+            ? <span role="alert" className={cn('text-sm font-bold', SIGNAL.act.text)}>音が入っていません</span>
+            : <span className="h-2 w-16 overflow-hidden rounded-pill bg-navy-900">
+                <span className="block h-full bg-red-400" style={{ width: `${Math.round(level * 100)}%` }} />
+              </span>}
         </div>
       )}
       <button
