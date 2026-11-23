@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { env } from '@/lib/env'
+import { CLINICAL_TERMS } from '@/lib/stt/terms'
 
 /**
  * 音声メモの文字起こしを、選手ごとの下書きに分ける（設計書 3.1）。
@@ -78,6 +79,7 @@ const SYSTEM = `あなたはスポーツフィジオ（理学療法士・トレ�
 - returned は、その選手が怪我から完全に復帰した・リハビリを終えた・故障者リストから外す、とトレーナーがはっきり話した karte の segment だけ true にする。「部分合流」「そろそろ復帰できそう」「来週復帰の予定」は false。迷ったら false。
 - alert は、痛みの急な増悪・外傷の疑い・メンタル面の兆候を話したときだけ、その内容を短く書く。
 - summary は、トレーナーが夜に読み返す一行。体言止めでよい。敬語や前置きは要らない。
+- 文字起こしは、専門用語を同じ読みの別の字に書き誤ることがある。読みが同じ（または濁点・長音だけが違う）で、名簿の怪我の名前・プロトコル一覧・terms の言葉のどれかに当たり、文の意味もそれで通るときだけ、その言葉に直して書く。例: 「全拒否靭帯」→前距腓靭帯、「過重で痛い」→荷重で痛い、「2周目に進める」→2週目に進める、「ストレッチツー」→ストレッチ痛、「原則と比べて」→健側と比べて。読みが違う語（「腫れは明るい」など）は直さず、下の決まりのとおり原文のまま残す。
 - 文字起こしはアルファベットの略語を分けて書くことがある（「n rs」は NRS、「sl r」は SLR）。同じ文字の並びなら略語に直して書く。値はそのまま使う（「n rsで六」は NRS 6）。
 - 話していない限定を足さない。「痛みは NRS で 1」を「安静時痛」「運動時痛」などと言い換えない。いつの痛みかを言っていなければ「痛み」のまま書く。
 - 文字起こしの誤りで意味が通らない語（特に痛みや回数などの数値）は、それらしい値や「軽度」などの程度の言葉で置き換えない。summary と各項目の両方に「聞き取り不明（原文: 見くらい）」のように原文のまま残す。夜に読み返すのは summary なので、summary から落とさない。`
@@ -95,6 +97,7 @@ export async function interpretTranscript(args: {
     time_zone: args.timeZone,
     roster: args.roster,
     protocols: args.protocols,
+    terms: CLINICAL_TERMS,
   }
   const response = await client.messages.parse({
     model: env.llmModel(),
@@ -104,7 +107,7 @@ export async function interpretTranscript(args: {
     messages: [
       {
         role: 'user',
-        content: `名簿とプロトコル一覧:\n${JSON.stringify(context)}\n\n音声メモの文字起こし（[秒] は話し始めの位置）:\n${args.transcript}`,
+        content: `名簿・プロトコル一覧・現場でよく使う言葉（terms）:\n${JSON.stringify(context)}\n\n音声メモの文字起こし（[秒] は話し始めの位置）:\n${args.transcript}`,
       },
     ],
   })
