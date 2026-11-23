@@ -1,4 +1,5 @@
 import 'server-only'
+import { CLINICAL_TERMS, injuryTerms } from '@/lib/stt/terms'
 import { adminDb } from '@/lib/supabase/server'
 import { personName } from '@/lib/format/name'
 import type { RosterPlayer, ProtocolRef } from '@/lib/llm/interpret'
@@ -96,14 +97,21 @@ export async function buildRoster(trainerId: string): Promise<{ roster: RosterPl
   return { roster, protocols: protocols ?? [] }
 }
 
-/** 文字起こしに渡す選手の名前（姓名・姓・名・呼び方）。名前は聞き取りを誤りやすいので Deepgram の keyterm にする */
+/**
+ * 文字起こしに渡す言葉（Deepgram の keyterm）。選手の名前と、傷病名・所見の言葉。
+ * 上限（100 語）で切られたときに姓名と専門用語が残るよう、姓名、専門用語、呼び方の順に並べる
+ */
 export async function rosterKeyterms(trainerId: string): Promise<string[]> {
-  const { data } = await adminDb()
-    .from('player')
-    .select('family_name, given_name, aliases')
-    .eq('trainer_id', trainerId)
-    .eq('is_active', true)
-  // 上限で切られたときに姓名が残るよう、姓名を先に並べる
+  const db = adminDb()
+  const [{ data }, { data: protocols }] = await Promise.all([
+    db.from('player').select('family_name, given_name, aliases').eq('trainer_id', trainerId).eq('is_active', true),
+    db.from('protocol').select('title'),
+  ])
   const players = data ?? []
-  return [...players.map((p) => `${p.family_name}${p.given_name}`), ...players.flatMap((p) => p.aliases ?? [])]
+  return [
+    ...players.map((p) => `${p.family_name}${p.given_name}`),
+    ...injuryTerms((protocols ?? []).map((p) => p.title)),
+    ...CLINICAL_TERMS,
+    ...players.flatMap((p) => p.aliases ?? []),
+  ]
 }

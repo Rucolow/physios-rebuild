@@ -39,12 +39,20 @@ export async function transcribe(audio: ArrayBuffer, mimeType: string, keyterms:
   })
   if (language) params.set('language', language)
   else params.set('detect_language', 'true')
+  const base = new URLSearchParams(params)
   for (const k of [...new Set(keyterms.map((k) => k.trim()).filter(Boolean))].slice(0, MAX_KEYTERMS)) params.append('keyterm', k)
-  const res = await fetch(`${ENDPOINT}?${params}`, {
-    method: 'POST',
-    headers: { Authorization: `Token ${env.deepgramKey()}`, 'Content-Type': mimeType || 'application/octet-stream' },
-    body: audio,
-  })
+  const post = (q: URLSearchParams) =>
+    fetch(`${ENDPOINT}?${q}`, {
+      method: 'POST',
+      headers: { Authorization: `Token ${env.deepgramKey()}`, 'Content-Type': mimeType || 'application/octet-stream' },
+      body: audio,
+    })
+  let res = await post(params)
+  // keyterm が原因で断られたとき（語数や長さの上限）は、手がかりなしで起こす。録音を失うよりよい
+  if (res.status === 400 && params.has('keyterm')) {
+    console.error(`keyterm つきの文字起こしが断られました: ${(await res.text()).slice(0, 300)}`)
+    res = await post(base)
+  }
   if (!res.ok) throw new Error(`文字起こしに失敗しました（${res.status}）: ${(await res.text()).slice(0, 300)}`)
   const json = (await res.json()) as {
     metadata?: { duration?: number }
