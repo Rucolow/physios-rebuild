@@ -103,15 +103,58 @@ export async function buildRoster(trainerId: string): Promise<{ roster: RosterPl
  */
 export async function rosterKeyterms(trainerId: string): Promise<string[]> {
   const db = adminDb()
-  const [{ data }, { data: protocols }] = await Promise.all([
+  const [{ data }, { data: protocols }, own] = await Promise.all([
     db.from('player').select('family_name, given_name, aliases').eq('trainer_id', trainerId).eq('is_active', true),
     db.from('protocol').select('title'),
+    trainerTerms(trainerId),
   ])
   const players = data ?? []
   return [
     ...players.map((p) => `${p.family_name}${p.given_name}`),
+    ...own,
     ...injuryTerms((protocols ?? []).map((p) => p.title)),
     ...CLINICAL_TERMS,
     ...players.flatMap((p) => p.aliases ?? []),
   ]
+}
+
+/** トレーナーが設定で足した「よく使う言葉」。列が無い環境（0008 の適用前）では空 */
+export async function trainerTerms(trainerId: string): Promise<string[]> {
+  const { data, error } = await adminDb().from('trainer').select('terms').eq('id', trainerId).maybeSingle()
+  if (error || !data) return []
+  return ((data as { terms?: string[] | null }).terms ?? []).map((t) => t.trim()).filter(Boolean)
+}
+
+/**
+ * 解釈に渡す、聞き取りを直すための材料。
+ * - terms: 所見の言葉と、トレーナーが足した言葉
+ * - exercises: 種目の名前（同じ読みの書き誤りを直す先）
+ * - corrections: このトレーナーがダイジェストで一行を書き直した例（新しい順、最大 12 件）
+ */
+export async function interpretHints(trainerId: string): Promise<{ terms: string[]; exercises: string[]; corrections: { before: string; after: string }[] }> {
+  const db = adminDb()
+  const [own, { data: ex }, { data: fixed }] = await Promise.all([
+    trainerTerms(trainerId),
+    db.from('exercise').select('name'),
+    db
+      .from('draft')
+      .select('payload, answer')
+      .eq('trainer_id', trainerId)
+      .eq('status', 'confirmed')
+      .not('answer->>summary', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(40),
+  ])
+  const corrections: { before: string; after: string }[] = []
+  for (const d of fixed ?? []) {
+    const before = (d.payload as { summary?: string } | null)?.summary?.trim()
+    const after = (d.answer as { summary?: string } | null)?.summary?.trim()
+    if (before && after && before !== after) corrections.push({ before, after })
+    if (corrections.length >= 12) break
+  }
+  return {
+    terms: [...new Set([...CLINICAL_TERMS, ...own])],
+    exercises: [...new Set((ex ?? []).map((e) => e.name))],
+    corrections,
+  }
 }

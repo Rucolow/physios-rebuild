@@ -1,4 +1,5 @@
 import { requireTrainer } from '@/lib/auth'
+import { trainerTerms } from '@/lib/roster'
 import { authClient } from '@/lib/supabase/server'
 import { SettingsForm } from './SettingsForm'
 import { signOut } from './actions'
@@ -6,12 +7,13 @@ import { signOut } from './actions'
 export default async function SettingsPage() {
   const trainer = await requireTrainer()
   const { data } = await (await authClient()).auth.getUser()
+  const terms = await trainerTerms(trainer.id)
   return <main className="px-4 py-6">
     <div className="mx-auto max-w-form space-y-8">
       <h1 className="text-4xl font-bold text-white">設定</h1>
       <section className="space-y-4">
         <h2 className="text-xl font-bold text-white">プロフィール</h2>
-        <SettingsForm name={trainer.name} timeZone={trainer.time_zone} />
+        <SettingsForm name={trainer.name} timeZone={trainer.time_zone} terms={terms} />
       </section>
       <section className="space-y-4">
         <h2 className="text-xl font-bold text-white">アカウント</h2>

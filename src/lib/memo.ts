@@ -3,7 +3,7 @@ import { adminDb } from '@/lib/supabase/server'
 import { localDate } from '@/lib/date'
 import { transcribe } from '@/lib/stt/deepgram'
 import { interpretTranscript, type InterpretedSegment } from '@/lib/llm/interpret'
-import { buildRoster, rosterKeyterms } from '@/lib/roster'
+import { buildRoster, interpretHints, rosterKeyterms } from '@/lib/roster'
 import type { Trainer } from '@/lib/auth'
 
 export type ConfirmReason = 'player' | 'protocol' | 'menu_row' | 'schedule' | null
@@ -145,13 +145,14 @@ async function processMemo(
   }
 
   try {
-    const { roster, protocols } = await buildRoster(trainer.id)
+    const [{ roster, protocols }, hints] = await Promise.all([buildRoster(trainer.id), interpretHints(trainer.id)])
     const segments = await interpretTranscript({
       transcript: marked,
       today: memo.local_date,
       timeZone: trainer.time_zone,
       roster,
       protocols,
+      hints,
     })
     const playerIds = new Set(roster.map((p) => p.id))
     const protocolIds = new Set(protocols.map((p) => p.id))
