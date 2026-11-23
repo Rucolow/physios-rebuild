@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { Search } from 'lucide-react'
 import { requireTrainer } from '@/lib/auth'
 import { adminDb } from '@/lib/supabase/server'
 import { personName } from '@/lib/format/name'
@@ -9,10 +8,11 @@ import { cn } from '@/lib/cn'
 import { Num } from '@/components/ui/Num'
 import { SIGNAL } from '@/lib/design/signal'
 import { AddPlayer } from '@/components/trainer/AddPlayer'
+import { PlayerList, type PlayerRow } from '@/components/trainer/PlayerList'
 
 export const dynamic = 'force-dynamic'
 
-type Row = { id: string; name: string; meta: string; status: 'full' | 'limited' | 'out' | null; watching: boolean; right: string | null; urgent: boolean }
+type Row = PlayerRow
 
 export default async function PlayersPage({ searchParams }: { searchParams: Promise<{ q?: string; team?: string }> }) {
   const trainer = await requireTrainer()
@@ -25,7 +25,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
     db.from('injury_episode').select('player_id, label, injured_on, player!inner(trainer_id)').eq('status', 'active').eq('player.trainer_id', trainer.id),
   ])
   const st = await playerStates((players ?? []).map((p) => p.id))
-  const rows: (Row & { teamId: string | null; text: string })[] = (players ?? []).map((p) => {
+  const rows: (Row & { teamId: string | null })[] = (players ?? []).map((p) => {
     const s = st.status.get(p.id)
     const mine = (eps ?? []).filter((e) => e.player_id === p.id)
     const ret = s?.expected_return ? daysBetween(today, s.expected_return) : null
@@ -38,18 +38,10 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
       watching: st.watching.has(p.id),
       right: ret === null ? null : ret > 0 ? `あと ${ret} 日` : ret === 0 ? '本日' : `${-ret} 日超過`,
       urgent: ret !== null && ret <= 7,
-      text: [p.family_name, p.given_name, ...(p.aliases ?? []), ...mine.map((e) => e.label)].join(' '),
+      text: [p.family_name, p.given_name, `${p.family_name}${p.given_name}`, ...(p.aliases ?? []), p.team ?? '', ...mine.map((e) => e.label)].join(' '),
     }
   })
-  const filtered = rows.filter((r) => (!team || r.teamId === team) && (!q || r.text.includes(q.trim())))
   const count = (f: (r: Row) => boolean) => rows.filter(f).length
-  const groups: { title: string; rows: Row[] }[] = [
-    { title: '合流の目安なし', rows: filtered.filter((r) => r.status === null) },
-    { title: '離脱中', rows: filtered.filter((r) => r.status === 'out') },
-    { title: '制限付き', rows: filtered.filter((r) => r.status === 'limited') },
-    { title: '要観察', rows: filtered.filter((r) => r.status === 'full' && r.watching) },
-    { title: '完全参加', rows: filtered.filter((r) => r.status === 'full' && !r.watching) },
-  ]
   const metrics = [
     { label: '離脱中', value: count((r) => r.status === 'out'), tone: SIGNAL.act.text },
     { label: '制限付き', value: count((r) => r.status === 'limited'), tone: SIGNAL.watch.text },
@@ -75,30 +67,11 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
       <div className="flex justify-end"><AddPlayer defaultTeam={(players ?? []).find((p) => !p.is_fictional && p.team)?.team ?? ''} /></div>
-      <form method="get" action="/players" className="relative">
-        {team && <input type="hidden" name="team" value={team} />}
-        <Search size={20} aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-navy-400" />
-        <input type="search" name="q" defaultValue={q} placeholder="名前・傷病で検索" aria-label="選手を検索" className="h-12 w-full rounded-field border border-layer-10 bg-layer-5 pl-12 pr-4 text-sm text-white placeholder:text-navy-500 focus:border-gold-500 focus:outline-none" />
-      </form>
       {(teams ?? []).length > 1 && <div className="flex flex-wrap gap-2">
         {[{ id: '', name: '全チーム' }, ...(teams ?? [])].map((t) => <Link key={t.id} href={href(t.id)} aria-current={team === t.id ? 'page' : undefined}
           className={cn('rounded-pill border px-3 py-1.5 text-2xs font-bold', team === t.id ? 'border-gold-500 bg-gold-500/15 text-gold-300' : 'border-layer-10 text-navy-300 hover:text-white')}>{t.name}</Link>)}
       </div>}
-      {filtered.length === 0 && <p className="text-sm text-navy-400">{rows.length === 0 ? 'まだ選手がいません。「選手を追加」から足してください。' : '該当する選手がいません。'}</p>}
-      {groups.filter((g) => g.rows.length > 0).map((g) => <section key={g.title} className="space-y-3">
-        <h2 className="text-base font-bold text-white">{g.title} <Num className="ml-1 text-2xs font-normal text-navy-400">{g.rows.length} 名</Num></h2>
-        <div className="glass overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
-          {g.rows.map((r) => <Link key={r.id} href={`/players/${r.id}`} className="flex items-center gap-4 px-5 py-4 transition-colors duration-fast hover:bg-layer-5">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-white">{r.name}</p>
-              <p className="mt-1 truncate text-2xs text-navy-400">{r.meta}</p>
-            </div>
-            {r.status === null
-              ? <span className={cn('shrink-0 text-2xs font-bold', SIGNAL.watch.text)}>目安なし</span>
-              : r.right && <Num className={cn('shrink-0 text-sm', r.urgent ? cn('font-bold', SIGNAL.watch.text) : 'text-navy-200')}>{r.right}</Num>}
-          </Link>)}
-        </div>
-      </section>)}
+      <PlayerList key={team} rows={rows.filter((r) => !team || r.teamId === team)} initialQuery={q} empty="まだ選手がいません。「選手を追加」から足してください。" />
     </div>
   </main>
 }

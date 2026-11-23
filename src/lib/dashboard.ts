@@ -138,7 +138,7 @@ export async function loadDashboard(trainer: Trainer): Promise<DashboardData> {
       alerts.push({ playerId: p.id, playerName: nameOf.get(p.id)!, note: null, tone: 'act', label: `痛み ${prev.pain_score}→${last.pain_score}` })
     } else if (items.length > 0) {
       const done = items.filter((i) => i.done_at).length
-      if (done === 0) alerts.push({ playerId: p.id, playerName: nameOf.get(p.id)!, note: null, tone: 'watch', label: '未実施' })
+      if (done === 0) alerts.push({ playerId: p.id, playerName: nameOf.get(p.id)!, note: `昨日 0/${items.length}`, tone: 'watch', label: '未実施' })
       else if (done < items.length) alerts.push({ playerId: p.id, playerName: nameOf.get(p.id)!, note: `昨日 ${done}/${items.length}`, tone: 'watch', label: '一部実施' })
     }
   }

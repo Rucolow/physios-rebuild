@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error(e)
     return NextResponse.json(
-      { message: '記録にできませんでした。録音は残り、ダイジェストの「処理できなかった録音」に出ます。' },
+      { message: '記録にできませんでした。メモは残り、ダイジェストの「処理できなかったメモ」からやり直せます。' },
       { status: 500 },
     )
   }

@@ -35,7 +35,7 @@ function HoldButton({ rail = false }: { rail?: boolean }) {
   return (
     <div className={cn('relative flex justify-center', rail ? 'py-3' : 'flex-1')}>
       {state === 'recording' && (
-        <div className={cn('pointer-events-none absolute flex items-center gap-2 rounded-pill border border-layer-10 glass px-3 py-2', rail ? 'left-full top-1/2 ml-3 -translate-y-1/2' : 'bottom-full mb-14')}>
+        <div className={cn('pointer-events-none absolute flex w-max items-center gap-2 whitespace-nowrap rounded-pill border border-layer-10 glass px-3 py-2', rail ? 'left-full top-1/2 ml-3 -translate-y-1/2' : 'bottom-full mb-14')}>
           <Num mono className="text-sm font-bold text-white">
             {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, '0')}
           </Num>

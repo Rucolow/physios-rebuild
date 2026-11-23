@@ -11,6 +11,12 @@ import { cn } from '@/lib/utils'
  * ヘッダ帯（挨拶・副指標・次の試合まで）→ 割込み帯（繰り越し／今日の要確認）→
  * 近況報告 → 本日の予定 → 本日のメニュー配信。≥lg は左右 2 ペイン。
  */
+/** 挨拶はトレーナーの時間帯の時刻で変える（夜に開いても「おはようございます」と出さない） */
+function greeting(timeZone: string) {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', hourCycle: 'h23' }).format(new Date()))
+  return h >= 4 && h < 11 ? 'おはようございます' : h >= 11 && h < 18 ? 'こんにちは' : 'こんばんは'
+}
+
 export default async function DashboardPage() {
   const trainer = await requireTrainer()
   const b = await loadDashboard(trainer)
@@ -21,7 +27,7 @@ export default async function DashboardPage() {
         <div className="space-y-3">
           <div>
             <p className="text-2xs font-bold uppercase tracking-wider text-navy-400"><Num>{b.date}</Num> {b.weekday}</p>
-            <h1 className="mt-1 text-3xl font-bold text-white">おはようございます</h1>
+            <h1 className="mt-1 text-3xl font-bold text-white">{greeting(trainer.time_zone)}</h1>
           </div>
           <div className="flex items-stretch">
             {b.metrics.map((m, i) => <div key={m.id} className={cn('px-4', i === 0 ? 'pl-0' : 'border-l border-layer-5')}>

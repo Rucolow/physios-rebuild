@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Calendar, ChevronLeft, ExternalLink, Pencil, User } from 'lucide-react'
+import { Calendar, ChevronLeft, ExternalLink, User } from 'lucide-react'
 import { requireTrainer } from '@/lib/auth'
 import { ARTICLE_CATEGORIES, BODY_REGIONS, loadArticle, type ArticleCategory } from '@/lib/knowledge'
 import { ArticleBody } from '@/components/knowledge/ArticleBody'
@@ -31,10 +31,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
             </Link>
             <div className="flex items-center gap-2">
               <BookmarkButton articleId={a.id} bookmarked={a.bookmarked} title={a.title} />
-              {a.mine && <Link href={`/knowledge/article/${a.id}/edit`} className="oa-button">
-                <Pencil size={16} strokeWidth={2} aria-hidden="true" />
-                編集する
-              </Link>}
             </div>
           </div>
           <div className="mb-4 flex flex-wrap items-center gap-2">

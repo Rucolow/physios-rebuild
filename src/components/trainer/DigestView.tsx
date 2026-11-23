@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Pause, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -9,6 +9,9 @@ import { StateWord } from '@/components/ui/StateWord'
 import { confirmAction, reprocessAction } from '@/app/(trainer)/digest/actions'
 import type { InterpretedSegment } from '@/lib/llm/interpret'
 import type { DraftAnswer } from '@/lib/confirm'
+
+const ANSWERS_KEY = 'physios:digest-answers'
+const md = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
 
 export interface DigestItem {
   id: string
@@ -38,7 +41,7 @@ interface Props {
   dateLabel: { full: string; wd: string }
   pending: DigestItem[]
   resolved: DigestItem[]
-  failed: { id: string; time: string; audioUrl: string | null }[]
+  failed: { id: string; time: string; audioUrl: string | null; silent?: boolean; typed?: boolean }[]
   ctx: DigestContext
   /** 見本の表示。確定を押しても書かない */
   preview?: boolean
@@ -59,9 +62,17 @@ function initialAnswer(it: DigestItem, ctx: DigestContext): DraftAnswer {
   return a
 }
 
-function unanswered(it: DigestItem, a: DraftAnswer): boolean {
+/** 復帰の話で、その選手に進行中の怪我があるとき。復帰にするかを答えてもらう */
+function asksReturn(it: DigestItem, a: DraftAnswer | undefined, ctx: DigestContext): boolean {
+  const playerId = a?.player_id ?? it.playerId
+  return it.kind === 'karte' && !!it.seg.returned && !!playerId && !!ctx.episodes[playerId]
+}
+
+function unanswered(it: DigestItem, a: DraftAnswer | undefined, ctx: DigestContext): boolean {
+  if (!a) return true
   if (a.action === 'reject') return false
   if (!it.playerId && !a.player_id && it.kind !== 'schedule') return true
+  if (asksReturn(it, a, ctx)) return a.close_episode === undefined
   if (it.kind === 'injury') return !a.protocol_id || !a.menu_row_id
   if (it.kind === 'menu_row') return !a.menu_row_id
   if (it.kind === 'schedule') return !a.accept_schedule
@@ -76,11 +87,35 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
   const [result, setResult] = useState<string | null>(null)
   const [busy, start] = useTransition()
 
-  const set = (id: string, patch: Partial<DraftAnswer>) =>
-    setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))
+  // 画面を開いた後に入った下書きには答えがまだ無いので、初期値から始める
+  const answerOf = (it: DigestItem) => answers[it.id] ?? initialAnswer(it, ctx)
+  const set = (it: DigestItem, patch: Partial<DraftAnswer>) =>
+    setAnswers((prev) => ({ ...prev, [it.id]: { ...(prev[it.id] ?? initialAnswer(it, ctx)), ...patch } }))
 
-  const needs = pending.filter((it) => it.reason !== null)
-  const open = pending.filter((it) => unanswered(it, answers[it.id]))
+  // 答えは記録するまで端末に残す（途中で画面を離れたり読み込み直したりしても消えないように）
+  const restored = useRef(false)
+  useEffect(() => {
+    if (preview) return
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(ANSWERS_KEY) ?? '{}') as Record<string, DraftAnswer>
+      const ids = new Set(pending.map((it) => it.id))
+      const keep = Object.fromEntries(Object.entries(saved).filter(([id]) => ids.has(id)))
+      if (Object.keys(keep).length) setAnswers((prev) => ({ ...prev, ...keep }))
+    } catch {}
+    restored.current = true
+    // 開いたときに一度だけ読む
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    if (preview || !restored.current) return
+    try {
+      window.localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers))
+    } catch {}
+  }, [answers, preview])
+
+  const needs = pending.filter((it) => it.reason !== null || asksReturn(it, answerOf(it), ctx))
+  const open = pending.filter((it) => unanswered(it, answerOf(it), ctx))
+  const ready = pending.length - open.length
   const carried = pending.filter((it) => it.carried).length
 
   function jumpToOpen() {
@@ -89,7 +124,7 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
   }
 
   function confirm() {
-    if (open.length) {
+    if (ready === 0) {
       jumpToOpen()
       return
     }
@@ -99,11 +134,12 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
       return
     }
     start(async () => {
-      const r = await confirmAction(answers)
+      const r = await confirmAction(Object.fromEntries(pending.map((it) => [it.id, answerOf(it)])))
       if (r.ok) {
         setResult(
-          `${r.confirmed} 件を記録しました。` +
-            (r.prescriptions ? `明日のメニューを ${r.prescriptions} 人分組みました。` : ''),
+          (r.confirmed || !r.rejected ? `${r.confirmed} 件を記録しました。` : `${r.rejected} 件を記録しないことにしました。`) +
+            (r.prescriptions ? `明日のメニューを ${r.prescriptions} 人分組みました。` : '') +
+            (r.left ? `残り ${r.left} 件。` : ''),
         )
         router.refresh()
       } else setResult(r.message)
@@ -124,9 +160,9 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
             ) : (
               <>
                 下書き <Num>{pending.length}</Num> 件。読んで、
-                {needs.length ? (
+                {open.length ? (
                   <>
-                    <Num>{needs.length}</Num> 箇所だけ確認してください。
+                    あと <Num>{open.length}</Num> 箇所だけ確認してください。
                   </>
                 ) : (
                   'よければ記録してください。'
@@ -136,12 +172,18 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
           </p>
         </section>
 
+        {result && pending.length === 0 && (
+          <p role="status" className="rounded-field border border-layer-10 bg-layer-5 px-4 py-3 text-sm text-navy-100">
+            {result}
+          </p>
+        )}
+
         {carried > 0 && (
           <div className="flex w-full items-center gap-3 rounded-field border border-gold-500/30 bg-gold-500/10 px-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-white">前の日の下書きが残っています</p>
               <p className="text-2xs text-navy-300">
-                <Num>{carried}</Num> 件。今日の分と一緒に記録できます。
+                <Num>{carried}</Num> 件。日付の付いた行です。今日の分と一緒に記録できます。
               </p>
             </div>
           </div>
@@ -150,21 +192,21 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
         {pending.length > 0 && (
           <section className="glass overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
             {pending.map((it) => (
-              <Row key={it.id} it={it} a={answers[it.id]} ctx={ctx} onChange={(p) => set(it.id, p)} />
+              <Row key={it.id} it={it} a={answerOf(it)} ctx={ctx} onChange={(p) => set(it, p)} />
             ))}
           </section>
         )}
 
         {failed.length > 0 && (
           <section className="space-y-2">
-            <h2 className="text-base font-bold text-white">処理できなかった録音</h2>
+            <h2 className="text-base font-bold text-white">処理できなかったメモ</h2>
             <div className="glass overflow-hidden rounded-card border border-layer-10 divide-y divide-layer-5">
               {failed.map((m) => (
                 <div key={m.id} className="flex items-center gap-4 px-5 py-3">
                   <span className="min-w-11 shrink-0 font-mono text-sm text-navy-400 nums">{m.time}</span>
-                  <p className="min-w-0 flex-1 text-sm text-navy-200">文字起こしか解釈に失敗しました。</p>
-                  {m.audioUrl && <AudioButton url={m.audioUrl} start={0} />}
-                  <RetryButton memoId={m.id} />
+                  <p className="min-w-0 flex-1 text-sm text-navy-200">{m.silent ? '声が入っていませんでした。7 日たつと消えます。' : m.typed ? '文のメモを記録にできませんでした。' : '文字起こしか解釈に失敗しました。'}</p>
+                  {m.audioUrl && !m.silent && <AudioButton url={m.audioUrl} start={0} />}
+                  {!m.silent && <RetryButton memoId={m.id} />}
                 </div>
               ))}
             </div>
@@ -193,7 +235,7 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
       </div>
 
       {pending.length > 0 && (
-        <div className="fixed inset-x-0 bottom-above-nav z-header border-t border-layer-5 glass px-4 py-3">
+        <div className="fixed inset-x-0 bottom-above-nav z-header md:left-rail border-t border-layer-5 glass px-4 py-3">
           <div className="mx-auto flex max-w-read items-center gap-4">
             <button type="button" onClick={jumpToOpen} className="min-w-0 flex-1 text-left text-2xs text-navy-400" role="status">
               {result ?? (
@@ -212,7 +254,7 @@ export function DigestView({ dateLabel, pending, resolved, failed, ctx, preview 
               )}
             </button>
             <Button variant="primary" size="md" disabled={busy} onClick={confirm}>
-              {busy ? '記録しています' : open.length ? '次の要確認へ' : '今日を記録する'}
+              {busy ? '記録しています' : ready === 0 ? '次の要確認へ' : open.length ? `答えた ${ready} 件を記録する` : '今日を記録する'}
             </Button>
           </div>
         </div>
@@ -225,12 +267,13 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
   const playerId = a.player_id ?? it.playerId
   const playerName = playerId ? ctx.players.find((p) => p.id === playerId)?.name ?? null : null
   const rejected = a.action === 'reject'
-  const isOpen = unanswered(it, a)
+  const isOpen = unanswered(it, a, ctx)
+  const returnable = asksReturn(it, a, ctx)
   // 読むだけの行は道具をしまっておき、本文を押したときだけ出す（10 行あっても読み物として読めるように）
   const [tools, setTools] = useState(false)
   const [editing, setEditing] = useState(false)
   const summary = a.summary ?? it.seg.summary
-  const showTools = it.reason !== null || tools || rejected
+  const showTools = it.reason !== null || returnable || tools || rejected
 
   const title =
     it.kind === 'schedule'
@@ -243,13 +286,16 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
 
   return (
     <div id={`draft-${it.id}`} className={cn('flex scroll-mt-6 items-start gap-4 px-5 py-4', rejected && 'bg-layer-3')}>
-      <span className={cn('w-11 shrink-0 pt-0.5 font-mono text-sm nums', rejected ? 'text-navy-500' : 'text-navy-400')}>{it.time}</span>
+      <span className={cn('w-11 shrink-0 pt-0.5 font-mono text-sm nums', rejected ? 'text-navy-500' : 'text-navy-400')}>
+        {it.carried && <span className="block text-2xs text-gold-400">{md(it.localDate)}</span>}
+        {it.time}
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <p className={cn('min-w-0 flex-1 text-sm', rejected ? 'text-navy-400' : 'font-bold text-white')}>{title}</p>
           {rejected ? (
             <StateWord tone="none">記録しない</StateWord>
-          ) : it.reason ? (
+          ) : it.reason || returnable ? (
             <StateWord tone={isOpen ? 'watch' : 'none'}>{isOpen ? '要確認' : '回答済み'}</StateWord>
           ) : a.summary !== undefined ? (
             <StateWord tone="none">直した</StateWord>
@@ -291,6 +337,15 @@ function Row({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer; ctx: Di
           <div className="mt-3 space-y-3 empty:hidden">
             {!it.playerId && it.kind !== 'schedule' && (
               <PlayerChoice it={it} a={a} ctx={ctx} onChange={onChange} />
+            )}
+            {returnable && playerId && (
+              <div className="space-y-2">
+                <p className="text-2xs font-medium text-navy-300">復帰にしますか（{ctx.episodes[playerId].label}）</p>
+                <div className="flex flex-wrap gap-2">
+                  <Choice selected={a.close_episode === true} onClick={() => onChange({ close_episode: true })}>復帰にする</Choice>
+                  <Choice selected={a.close_episode === false} onClick={() => onChange({ close_episode: false })}>まだ続ける</Choice>
+                </div>
+              </div>
             )}
             {it.kind === 'menu_row' && playerId && <RowChoice playerId={playerId} a={a} ctx={ctx} onChange={onChange} />}
             {it.kind === 'injury' && <InjuryChoice it={it} a={a} ctx={ctx} onChange={onChange} />}
@@ -354,7 +409,7 @@ function PlayerChoice({ it, a, ctx, onChange }: { it: DigestItem; a: DraftAnswer
   const others = ctx.players.filter((p) => !candidates.includes(p.id))
   return (
     <div className="space-y-2">
-      <p className="text-2xs font-medium text-navy-300">どの選手の話ですか{it.seg.player_basis ? `（${it.seg.player_basis}）` : ''}</p>
+      <p className="text-2xs font-medium text-navy-300">どの選手の話ですか</p>
       <div className="flex flex-wrap gap-2">
         {candidates.map((id) => (
           <Choice key={id} selected={a.player_id === id} onClick={() => onChange({ player_id: id })}>

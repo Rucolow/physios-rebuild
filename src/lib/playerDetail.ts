@@ -1,6 +1,7 @@
 import 'server-only'
 import { adminDb } from '@/lib/supabase/server'
 import { addDays, daysBetween, localDate, weekSince } from '@/lib/date'
+import { pastEpisodes } from '@/lib/episode'
 import { personName } from '@/lib/format/name'
 import { prescribe } from '@/lib/prescribe'
 import { dayFocusLabel } from '@/lib/dayFocus'
@@ -50,21 +51,27 @@ export async function loadPlayerHead(trainer: Trainer, id: string) {
   const db = adminDb()
   const { data: p } = await db
     .from('player')
-    .select('id, family_name, given_name, team, team_id, share_token, is_fictional')
+    .select('id, family_name, given_name, aliases, team, team_id, share_token, is_fictional')
     .eq('id', id)
     .eq('trainer_id', trainer.id)
+    .eq('is_active', true)
     .maybeSingle()
   if (!p) return null
   const today = localDate(trainer.time_zone)
-  const [{ data: eps }, st] = await Promise.all([
+  const [{ data: eps }, st, past] = await Promise.all([
     db.from('injury_episode').select('id, label, injured_on, status, protocol_id').eq('player_id', p.id).order('created_at', { ascending: false }),
     playerStates([p.id]),
+    pastEpisodes(db, p.id),
   ])
   const s = st.status.get(p.id)
   const active = (eps ?? []).filter((e) => e.status === 'active')
   return {
     id: p.id,
     name: personName(p.family_name, p.given_name),
+    familyName: p.family_name,
+    givenName: p.given_name,
+    aliases: (p.aliases ?? []) as string[],
+    past,
     team: p.team,
     teamId: p.team_id,
     token: p.share_token,
