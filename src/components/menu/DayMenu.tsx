@@ -92,10 +92,10 @@ export function DayMenu({ items, onToggle, checkable = false }: { items: PlayerD
   </>
 }
 
-/** 原文の 1 行ごとの先頭の「・」と Markdown の記号（強調・記号だけの行）・行末の空白を落として行に分ける（文言は変えない） */
+/** 原文の 1 行ごとの先頭の「・」と Markdown の記号（強調・記号だけの行・取り込み時に紛れた次の種目の見出し「## …」）・行末の空白を落として行に分ける（文言は変えない） */
 function lines(s: string | null): string[] {
   if (!s) return []
-  return s.split('\n').map((t) => t.replace(/\*\*/g, '').trim().replace(/^・\s*/, '').trim()).filter((t) => t && !/^[#*\-_\s]+$/.test(t))
+  return s.split('\n').map((t) => t.replace(/\*\*/g, '').trim().replace(/^・\s*/, '').trim()).filter((t) => t && !t.startsWith('#') && !/^[*\-_\s]+$/.test(t))
 }
 
 /** 数字だけを大きく見せる。文言はそのまま */
