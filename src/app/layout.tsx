@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Noto_Sans_JP, JetBrains_Mono } from 'next/font/google'
+// フォントはリポジトリの依存（@fontsource-variable）から配る。next/font/google はビルドのたびに Google Fonts へ
+// 取りに行き、2026-11-24 に Vercel のビルドがそこで失敗した。--font-* の値は globals.css の :root に置く
+import '@fontsource-variable/inter/wght.css'
+import '@fontsource-variable/noto-sans-jp/wght.css'
+import '@fontsource-variable/jetbrains-mono/wght.css'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin', 'latin-ext'], display: 'swap', variable: '--font-inter' })
-const notoSansJP = Noto_Sans_JP({ subsets: ['latin'], weight: ['400', '500', '700'], display: 'swap', variable: '--font-noto-sans-jp', preload: false })
-const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '700'], display: 'swap', variable: '--font-jetbrains-mono' })
 
 export const metadata: Metadata = {
   title: 'PHYSIOS',
@@ -24,7 +24,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} ${jetbrainsMono.variable}`}>
+    <html lang="ja">
       <body className="font-sans antialiased">{children}</body>
     </html>
   )
