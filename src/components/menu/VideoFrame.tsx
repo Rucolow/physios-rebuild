@@ -21,18 +21,35 @@ function embedUrl(url: string): string | null {
 }
 
 /**
- * 種目の動画。詳細の一番上に 16:9 の枠で置く。
- * 自前の置き場の動画はそのまま再生し、YouTube・Vimeo は埋め込む。動画がまだ無い種目は空の枠を出す。
+ * 種目の動画。詳細の一番上に置く。
+ * 自前の置き場の動画は清水の縦撮りを 4:5 に切り抜いたもので、音なしで自動再生して繰り返す（2026-11-23 Rucolow）。
+ * YouTube・Vimeo は 16:9 で埋め込む。動画がまだ無い種目は 16:9 の空の枠を出す。
  */
 export function VideoFrame({ url, title }: { url: string | null; title: string }) {
   const own = url ? isOwnStorageUrl(url) : false
   const embed = url && !own ? embedUrl(url) : null
+  if (url && own) {
+    return (
+      <div className="mx-auto aspect-exercise w-full max-w-form overflow-hidden rounded-field border border-layer-10 bg-navy-900">
+        {/* 音の無い動作の映像なので字幕の器は要らない */}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          src={url}
+          aria-label={title}
+          autoPlay
+          muted
+          loop
+          playsInline
+          controls
+          preload="auto"
+          className="h-full w-full object-cover"
+        />
+      </div>
+    )
+  }
   return (
     <div className="aspect-video w-full overflow-hidden rounded-field border border-layer-10 bg-navy-900">
-      {url && own ? (
-        // eslint-disable-next-line jsx-a11y/media-has-caption -- 字幕の器が無い
-        <video src={url} controls preload="metadata" playsInline className="h-full w-full" />
-      ) : embed ? (
+      {embed ? (
         <iframe
           src={embed}
           title={title}

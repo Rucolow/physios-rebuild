@@ -190,6 +190,7 @@ const config: Config = {
 
       aspectRatio: {
         thumb: '16 / 10', // 記事カードのサムネ（§4-18）
+        exercise: '4 / 5', // 種目動画（清水の縦撮りを切り抜いた 1080x1350、2026-11-23 Rucolow）
       },
 
       gridTemplateColumns: {
