@@ -45,6 +45,7 @@ export interface SheetExercise {
   load: string | null
   rest: string | null
   videoUrl: string | null
+  trainerNote: string | null
 }
 
 export interface SheetRow {
@@ -66,7 +67,7 @@ export async function protocolSheet(protocolId: string): Promise<SheetRow[]> {
   const { data: rows, error } = await db
     .from('protocol_menu_row')
     .select(
-      'id, row_index, period_raw, cells:protocol_menu_cell(id, column_label, column_order, category_label, category_order, items:protocol_menu_item(sort_order, exercise:exercise_id(id, name, start_position, movement, focus_points, default_sets_raw, default_reps_raw, default_load_raw, default_rest_raw, video_url)))',
+      'id, row_index, period_raw, cells:protocol_menu_cell(id, column_label, column_order, category_label, category_order, items:protocol_menu_item(sort_order, exercise:exercise_id(id, name, start_position, movement, focus_points, default_sets_raw, default_reps_raw, default_load_raw, default_rest_raw, video_url, trainer_note)))',
     )
     .eq('protocol_id', protocolId)
     .order('row_index')
@@ -82,6 +83,7 @@ export async function protocolSheet(protocolId: string): Promise<SheetRow[]> {
     default_load_raw: string | null
     default_rest_raw: string | null
     video_url: string | null
+    trainer_note: string | null
   }
   return (rows ?? []).map((r) => {
     const cells = ((r.cells ?? []) as unknown as {
@@ -108,6 +110,7 @@ export async function protocolSheet(protocolId: string): Promise<SheetRow[]> {
             load: e.default_load_raw,
             rest: e.default_rest_raw,
             videoUrl: e.video_url,
+            trainerNote: e.trainer_note,
           })),
       }))
     return { menuRowId: r.id, periodRaw: r.period_raw, itemCount: cells.reduce((s, c) => s + c.exercises.length, 0), cells }

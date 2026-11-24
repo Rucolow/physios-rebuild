@@ -135,7 +135,7 @@ function ExerciseDetail({ it }: { it: PlayerDayItem }) {
       {restNotes.map((n) => <p key={n} className="text-2xs text-navy-400">{n}</p>)}
     </div>}
 
-    {load.length > 0 && <Section label="強度">
+    {load.length > 0 && <Section label="強さの目安">
       <ul className="space-y-1">{load.map((l) => <li key={l} className="text-sm text-navy-100">{l}</li>)}</ul>
     </Section>}
 
@@ -155,6 +155,10 @@ function ExerciseDetail({ it }: { it: PlayerDayItem }) {
         <Check size={16} strokeWidth={2.5} aria-hidden="true" className="mt-0.5 shrink-0 text-gold-500" />
         <span className="min-w-0 flex-1 text-sm text-navy-100">{l}</span>
       </li>)}</ul>
+    </Section>}
+
+    {it.trainerNote && <Section label="トレーナー向けメモ（選手には出ない）">
+      {lines(it.trainerNote).map((l) => <p key={l} className="text-sm text-navy-300">{l}</p>)}
     </Section>}
   </div>
 }

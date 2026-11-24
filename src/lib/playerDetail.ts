@@ -5,7 +5,7 @@ import { pastEpisodes } from '@/lib/episode'
 import { personName } from '@/lib/format/name'
 import { prescribe } from '@/lib/prescribe'
 import { dayFocusLabel } from '@/lib/dayFocus'
-import { ITEMS_SELECT, toItems, type PlayerDayItem } from '@/lib/playerDay'
+import { TRAINER_ITEMS_SELECT, toItems, type PlayerDayItem } from '@/lib/playerDay'
 import { playerStates } from '@/lib/team'
 import type { Trainer } from '@/lib/auth'
 
@@ -96,7 +96,7 @@ export async function loadWeek(head: PlayerHead): Promise<{ from: string; to: st
   const ids = head.active.map((e) => e.id).concat(['00000000-0000-0000-0000-000000000000'])
   const { data: rx } = await db
     .from('prescription')
-    .select(`injury_episode_id, target_on, day_group, is_rest_day, row:menu_row_id(period_raw), ${ITEMS_SELECT}`)
+    .select(`injury_episode_id, target_on, day_group, is_rest_day, row:menu_row_id(period_raw), ${TRAINER_ITEMS_SELECT}`)
     .in('injury_episode_id', ids)
     .gte('target_on', from)
     .lte('target_on', to)

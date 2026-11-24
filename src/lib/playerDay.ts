@@ -17,6 +17,8 @@ export interface PlayerDayItem {
   rest: string | null
   load: string | null
   videoUrl: string | null
+  /** トレーナー向けのメモ（目的など）。選手の画面の読み込みでは取らない */
+  trainerNote?: string | null
   done: boolean
 }
 
@@ -35,7 +37,11 @@ export interface PlayerDay {
 export const ITEMS_SELECT =
   'items:prescription_item(id, column_label, category_label, sort_order, done_at, exercise:exercise_id(name, start_position, movement, focus_points, default_sets_raw, default_reps_raw, default_rest_raw, default_load_raw, video_url))'
 
-type Ex = { name: string; start_position: string | null; movement: string | null; focus_points: unknown; default_sets_raw: string | null; default_reps_raw: string | null; default_rest_raw: string | null; default_load_raw: string | null; video_url: string | null }
+/** トレーナーの画面用。選手の画面と同じ列に trainer_note を足す */
+export const TRAINER_ITEMS_SELECT =
+  'items:prescription_item(id, column_label, category_label, sort_order, done_at, exercise:exercise_id(name, start_position, movement, focus_points, default_sets_raw, default_reps_raw, default_rest_raw, default_load_raw, video_url, trainer_note))'
+
+type Ex = { name: string; start_position: string | null; movement: string | null; focus_points: unknown; default_sets_raw: string | null; default_reps_raw: string | null; default_rest_raw: string | null; default_load_raw: string | null; video_url: string | null; trainer_note?: string | null }
 
 /** 処方の種目を、画面に出す形にする */
 export function toItems(raw: unknown): PlayerDayItem[] {
@@ -54,6 +60,7 @@ export function toItems(raw: unknown): PlayerDayItem[] {
       rest: i.exercise.default_rest_raw,
       load: i.exercise.default_load_raw,
       videoUrl: i.exercise.video_url,
+      ...(i.exercise.trainer_note !== undefined ? { trainerNote: i.exercise.trainer_note } : {}),
       done: !!i.done_at,
     }))
 }

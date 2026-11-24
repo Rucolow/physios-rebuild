@@ -158,7 +158,7 @@ function CategoryCard({ cell }: { cell: SheetRow['cells'][number] }) {
 function ExerciseRow({ exercise }: { exercise: SheetExercise }) {
   const [open, setOpen] = useState(false)
   const { row: chips, folded } = doseParts(exercise)
-  const empty = folded.length === 0 && !exercise.startPosition && !exercise.movement && exercise.focusPoints.length === 0
+  const empty = folded.length === 0 && !exercise.trainerNote && !exercise.startPosition && !exercise.movement && exercise.focusPoints.length === 0
 
   return <div className="border-b border-white/5 transition-colors duration-200 last:border-b-0">
     <button
@@ -212,6 +212,10 @@ function ExerciseRow({ exercise }: { exercise: SheetExercise }) {
         <ul className="mt-1 space-y-1">
           {exercise.focusPoints.map((f) => <li key={f} className="text-[14px] leading-[20px] text-white/80">{f}</li>)}
         </ul>
+      </div>}
+      {exercise.trainerNote && <div>
+        <div className="text-[12px] leading-[16px] text-white/40">トレーナー向けメモ（選手には出ない）</div>
+        <p className="mt-1 whitespace-pre-line text-[14px] leading-[20px] text-white/80">{exercise.trainerNote}</p>
       </div>}
       {/* J18-3: 未登録は文言で言う。空欄で表さない */}
       {empty && <p className="text-[12px] leading-[16px] text-white/40">この種目の詳細は登録されていません。</p>}
