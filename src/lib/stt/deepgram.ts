@@ -48,10 +48,14 @@ export async function transcribe(audio: ArrayBuffer, mimeType: string, keyterms:
       body: audio,
     })
   let res = await post(params)
-  // keyterm が原因で断られたとき（語数や長さの上限）は、手がかりなしで起こす。録音を失うよりよい
-  if (res.status === 400 && params.has('keyterm')) {
-    console.error(`keyterm つきの文字起こしが断られました: ${(await res.text()).slice(0, 300)}`)
-    res = await post(base)
+  // keyterm が原因で断られたとき（全体のトークン数の上限）は、後ろ半分を落として試し、最後は手がかりなしで起こす。録音を失うよりよい
+  let kept = params.getAll('keyterm')
+  while (res.status === 400 && kept.length) {
+    console.error(`keyterm ${kept.length} 語つきの文字起こしが断られました: ${(await res.text()).slice(0, 300)}`)
+    kept = kept.slice(0, Math.floor(kept.length / 2))
+    const q = new URLSearchParams(base)
+    for (const k of kept) q.append('keyterm', k)
+    res = await post(q)
   }
   if (!res.ok) throw new Error(`文字起こしに失敗しました（${res.status}）: ${(await res.text()).slice(0, 300)}`)
   const json = (await res.json()) as {

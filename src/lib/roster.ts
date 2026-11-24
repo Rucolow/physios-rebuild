@@ -1,5 +1,5 @@
 import 'server-only'
-import { CLINICAL_TERMS, injuryTerms } from '@/lib/stt/terms'
+import { CLINICAL_TERMS, CLINICAL_TERMS_DE, fitKeyterms, injuryTerms, keytermName, mainLanguage, orderKeyterms } from '@/lib/stt/terms'
 import { adminDb } from '@/lib/supabase/server'
 import { personName } from '@/lib/format/name'
 import type { RosterPlayer, ProtocolRef } from '@/lib/llm/interpret'
@@ -99,24 +99,26 @@ export async function buildRoster(trainerId: string): Promise<{ roster: RosterPl
 
 /**
  * 文字起こしに渡す言葉（Deepgram の keyterm）。選手の名前と、傷病名・所見の言葉。
- * 上限（100 語）で切られたときに姓名と専門用語が残るよう、姓名、専門用語、呼び方の順に並べる
+ * Deepgram の上限（全体で 500 トークン）を超えると要求ごと断られるので、優先度の順に並べて収まる分だけ渡す
  */
 export async function rosterKeyterms(trainerId: string): Promise<string[]> {
   const db = adminDb()
-  const [{ data }, { data: protocols }, own] = await Promise.all([
+  const [{ data }, { data: protocols }, own, { data: memos }] = await Promise.all([
     db.from('player').select('family_name, given_name, aliases').eq('trainer_id', trainerId).eq('is_active', true),
     db.from('protocol').select('title'),
     trainerTerms(trainerId),
+    db.from('voice_memo').select('stt_language').eq('trainer_id', trainerId).not('stt_language', 'is', null).order('recorded_at', { ascending: false }).limit(10),
   ])
   const players = data ?? []
-  return [
-    // 漢字・かなの名前は続けて、原綴りの名前は「名 姓」と空白で分けて渡す（つなげると一語として扱われて効かない）
-    ...players.map((p) => (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(p.family_name + p.given_name) ? `${p.family_name}${p.given_name}` : `${p.given_name} ${p.family_name}`)),
-    ...own,
-    ...injuryTerms((protocols ?? []).map((p) => p.title)),
-    ...CLINICAL_TERMS,
-    ...players.flatMap((p) => p.aliases ?? []),
-  ]
+  return fitKeyterms(
+    orderKeyterms({
+      names: players.map((p) => keytermName(p.family_name, p.given_name)),
+      own,
+      injuries: injuryTerms((protocols ?? []).map((p) => p.title)),
+      aliases: players.flatMap((p) => p.aliases ?? []),
+      language: mainLanguage((memos ?? []).map((m) => m.stt_language as string | null)),
+    }),
+  )
 }
 
 /** トレーナーが設定で足した「よく使う言葉」。列が無い環境（0008 の適用前）では空 */
@@ -154,7 +156,7 @@ export async function interpretHints(trainerId: string): Promise<{ terms: string
     if (corrections.length >= 12) break
   }
   return {
-    terms: [...new Set([...CLINICAL_TERMS, ...own])],
+    terms: [...new Set([...CLINICAL_TERMS, ...CLINICAL_TERMS_DE, ...own])],
     exercises: [...new Set((ex ?? []).map((e) => e.name))],
     corrections,
   }

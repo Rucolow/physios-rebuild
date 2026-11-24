@@ -10,6 +10,9 @@
  * CSS 変数（レイアウト寸法とモーション。色はすべて Tailwind トークン側）
  * ============================================================ */
 :root {
+  --font-inter: 'Inter Variable';
+  --font-noto-sans-jp: 'Noto Sans JP Variable';
+  --font-jetbrains-mono: 'JetBrains Mono Variable';
   --header-h: 3.5rem;
   --header-h-lg: 4rem;
   --nav-h: 4rem;
