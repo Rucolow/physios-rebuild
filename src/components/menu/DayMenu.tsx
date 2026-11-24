@@ -92,31 +92,69 @@ export function DayMenu({ items, onToggle, checkable = false }: { items: PlayerD
   </>
 }
 
-function ExerciseDetail({ it }: { it: PlayerDayItem }) {
-  const dose: [string, string | null][] = [['セット', it.sets], ['回数', it.reps], ['負荷', it.load], ['休憩', it.rest]]
-  const shown = dose.filter(([, v]) => v)
-  return <div className="space-y-4">
-    <VideoFrame url={it.videoUrl} title={it.name} />
-    {shown.length === 0
-      ? <p className="text-sm text-navy-400">用量の記載はありません。</p>
-      : <dl className="space-y-2">
-          {shown.map(([k, v]) => <div key={k} className="flex gap-3">
-            <dt className="w-12 shrink-0 pt-0.5 text-2xs text-navy-400">{k}</dt>
-            <dd className="min-w-0 flex-1 whitespace-pre-line text-sm text-navy-100"><Num>{strip(v!)}</Num></dd>
-          </div>)}
-        </dl>}
-    {it.startPosition && <Block label="開始姿勢" text={it.startPosition} />}
-    {it.movement && <Block label="動作" text={it.movement} />}
-    {it.focus.length > 0 && <div>
-      <p className="text-2xs text-navy-400">ポイント</p>
-      <ul className="mt-1 space-y-1">{it.focus.map((f) => <li key={f} className="text-sm text-navy-100">{f}</li>)}</ul>
-    </div>}
-  </div>
+/** 原文の 1 行ごとの先頭の「・」と Markdown の記号（強調・記号だけの行・取り込み時に紛れた次の種目の見出し「## …」）・行末の空白を落として行に分ける（文言は変えない） */
+function lines(s: string | null): string[] {
+  if (!s) return []
+  return s.split('\n').map((t) => t.replace(/\*\*/g, '').trim().replace(/^・\s*/, '').trim()).filter((t) => t && !t.startsWith('#') && !/^[*\-_\s]+$/.test(t))
 }
 
-function Block({ label, text }: { label: string; text: string }) {
-  return <div>
-    <p className="text-2xs text-navy-400">{label}</p>
-    <p className="mt-1 whitespace-pre-line text-sm text-navy-100">{text}</p>
+/** 数字だけを大きく見せる。文言はそのまま */
+function Figure({ text }: { text: string }) {
+  const parts = text.split(/(\d+(?:[.〜~\-－]\d+)?)/)
+  return <>{parts.map((p, i) => i % 2 === 1
+    ? <Num key={i} className="text-xl font-bold text-white">{p}</Num>
+    : p && <span key={i} className="text-sm text-navy-200">{p}</span>)}</>
+}
+
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return <section className="space-y-2">
+    <h3 className="text-2xs font-bold uppercase tracking-wider text-navy-400">{label}</h3>
+    {children}
+  </section>
+}
+
+function ExerciseDetail({ it }: { it: PlayerDayItem }) {
+  const sets = lines(it.sets)[0]
+  const reps = lines(it.reps)
+  const [rest, ...restNotes] = lines(it.rest)
+  const load = lines(it.load)
+  const steps = lines(it.movement)
+  const focus = it.focus.flatMap((f) => lines(f))
+  const start = lines(it.startPosition)
+  return <div className="space-y-5">
+    <VideoFrame url={it.videoUrl} title={it.name} />
+
+    {(sets || reps.length > 0 || rest) && <div className="space-y-1.5">
+      {(sets || reps.length > 0) && <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        {sets && <span><Figure text={sets} /></span>}
+        {sets && reps.length > 0 && <span aria-hidden="true" className="text-sm text-navy-500">×</span>}
+        {reps.length > 0 && <span><Figure text={reps[0]} /></span>}
+      </p>}
+      {reps.slice(1).map((r) => <p key={r} className="text-sm text-navy-200">{r}</p>)}
+      {rest && <p className="text-sm text-navy-300">休憩 <Num className="text-navy-100">{rest}</Num></p>}
+      {restNotes.map((n) => <p key={n} className="text-2xs text-navy-400">{n}</p>)}
+    </div>}
+
+    {load.length > 0 && <Section label="強度">
+      <ul className="space-y-1">{load.map((l) => <li key={l} className="text-sm text-navy-100">{l}</li>)}</ul>
+    </Section>}
+
+    {start.length > 0 && <Section label="開始姿勢">
+      <div className="space-y-1">{start.map((l) => <p key={l} className="text-sm text-navy-100">{l}</p>)}</div>
+    </Section>}
+
+    {steps.length > 0 && <Section label="動作">
+      <ol className="space-y-2">{steps.map((l, i) => <li key={i} className="flex gap-3">
+        <Num className="flex h-5 w-5 shrink-0 items-center justify-center rounded-pill bg-layer-10 text-2xs font-bold text-gold-500">{i + 1}</Num>
+        <span className="min-w-0 flex-1 text-sm text-navy-100">{l}</span>
+      </li>)}</ol>
+    </Section>}
+
+    {focus.length > 0 && <Section label="ポイント">
+      <ul className="space-y-2">{focus.map((l) => <li key={l} className="flex gap-3">
+        <Check size={16} strokeWidth={2.5} aria-hidden="true" className="mt-0.5 shrink-0 text-gold-500" />
+        <span className="min-w-0 flex-1 text-sm text-navy-100">{l}</span>
+      </li>)}</ul>
+    </Section>}
   </div>
 }
