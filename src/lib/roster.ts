@@ -110,7 +110,8 @@ export async function rosterKeyterms(trainerId: string): Promise<string[]> {
   ])
   const players = data ?? []
   return [
-    ...players.map((p) => `${p.family_name}${p.given_name}`),
+    // 漢字・かなの名前は続けて、原綴りの名前は「名 姓」と空白で分けて渡す（つなげると一語として扱われて効かない）
+    ...players.map((p) => (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(p.family_name + p.given_name) ? `${p.family_name}${p.given_name}` : `${p.given_name} ${p.family_name}`)),
     ...own,
     ...injuryTerms((protocols ?? []).map((p) => p.title)),
     ...CLINICAL_TERMS,
