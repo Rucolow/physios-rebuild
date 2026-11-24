@@ -1,5 +1,6 @@
 import { Play } from 'lucide-react'
 import { isOwnStorageUrl } from '@/lib/format/ownStorageUrl'
+import { OwnVideo } from './OwnVideo'
 
 /** YouTube・Vimeo の URL を埋め込み用の URL にする。分からないものは null */
 function embedUrl(url: string): string | null {
@@ -29,23 +30,7 @@ export function VideoFrame({ url, title }: { url: string | null; title: string }
   const own = url ? isOwnStorageUrl(url) : false
   const embed = url && !own ? embedUrl(url) : null
   if (url && own) {
-    return (
-      <div className="mx-auto aspect-exercise w-full max-w-form overflow-hidden rounded-field border border-layer-10 bg-navy-900">
-        {/* 音の無い動作の映像なので字幕の器は要らない */}
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video
-          src={url}
-          aria-label={title}
-          autoPlay
-          muted
-          loop
-          playsInline
-          controls
-          preload="auto"
-          className="h-full w-full object-cover"
-        />
-      </div>
-    )
+    return <OwnVideo url={url} title={title} />
   }
   return (
     <div className="aspect-video w-full overflow-hidden rounded-field border border-layer-10 bg-navy-900">
