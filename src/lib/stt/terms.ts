@@ -36,12 +36,12 @@ const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/
 
 /**
  * Deepgram は keyterm 全体で 500 トークンまでしか受け付けず、超えると要求ごと断る。
- * 2026-11-24 に測ると、かな・漢字は約 150 字、原綴りは 940 字でも通った。ここでは余裕を見て
- * かな・漢字 1 字を 3.4、それ以外の 1 字を 0.5、1 語につき 1 と数える。
+ * 2026-11-24 に測ると、かな・漢字は 146 字で通り 152 字で断られた。原綴りは人名 91 人分（1210 字）でも通った。
+ * ここでは余裕を見て、かな・漢字 1 字を 3.4、それ以外の 1 字を 0.35、1 語につき 1 と数える。
  */
 export function keytermCost(term: string): number {
   let n = 1
-  for (const ch of term) n += CJK.test(ch) ? 3.4 : 0.5
+  for (const ch of term) n += CJK.test(ch) ? 3.4 : 0.35
   return n
 }
 

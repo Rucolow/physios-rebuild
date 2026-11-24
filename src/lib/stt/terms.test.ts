@@ -34,3 +34,9 @@ test('原綴りの名前は「名 姓」、かな・漢字の名前は続けて�
   assert.equal(keytermName('Mairose', 'Jost'), 'Jost Mairose')
   assert.equal(keytermName('森', '大和'), '森大和')
 })
+
+test('原綴りの名簿は 70 人でも全員の名前が残る', () => {
+  const names = Array.from({ length: 70 }, (_, i) => `Jonas Weber${i}`)
+  const kept = fitKeyterms(orderKeyterms({ names, own: [], injuries: [], aliases: [], language: 'de' }))
+  for (const n of names) assert.ok(kept.includes(n))
+})
