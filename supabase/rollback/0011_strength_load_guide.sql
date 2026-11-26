@@ -1,0 +1,12 @@
+-- 0011 を戻す。9 種目とも 0010 適用後は default_load_raw が null だった。
+update exercise set default_load_raw = null where name = 'ケーブルプッシュダウンⅡ';
+update exercise set default_load_raw = null where name = 'ケーブルアブダクションⅡ';
+update exercise set default_load_raw = null where name = 'ケーブルラットプルダウンⅡ';
+update exercise set default_load_raw = null where name = 'ベンチプレスⅢ';
+update exercise set default_load_raw = null where name = 'ベントオーバーローⅢ';
+update exercise set default_load_raw = null where name = 'オーバーヘッドプレスⅢ';
+update exercise set default_load_raw = null where name = 'ケーブルプッシュダウンⅢ';
+update exercise set default_load_raw = null where name = 'ケーブルアブダクションⅢ';
+update exercise set default_load_raw = null where name = 'ケーブルラットプルダウンⅢ';
+update exercise set trainer_note = '検討必要' where name = 'ケーブルプッシュダウンⅡ';
+update exercise set trainer_note = '検討必要（最大筋力増強）' where name = 'ケーブルプッシュダウンⅢ';
