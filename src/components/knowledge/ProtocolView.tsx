@@ -195,7 +195,7 @@ function ExerciseRow({ exercise }: { exercise: SheetExercise }) {
         行に載せなかった逐語（休憩・改行を含む列）を捨てずにここで読む（§5-9・J174-2）。
         改行は保つ——著者の箇条書きを潰さない */}
     {open && <div className="space-y-3 border-t border-white/5 py-3 pl-11 pr-4">
-      <div className="max-w-md"><VideoFrame url={exercise.videoUrl} title={exercise.name} /></div>
+      {exercise.videoUrl && <div className="max-w-md"><VideoFrame url={exercise.videoUrl} title={exercise.name} /></div>}
       {folded.length > 0 && <p className="whitespace-pre-line text-[12px] leading-[16px] text-white/50 tabular-nums">
         {folded.join('\n')}
       </p>}

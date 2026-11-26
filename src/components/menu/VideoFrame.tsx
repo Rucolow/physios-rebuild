@@ -1,4 +1,3 @@
-import { Play } from 'lucide-react'
 import { isOwnStorageUrl } from '@/lib/format/ownStorageUrl'
 import { OwnVideo } from './OwnVideo'
 
@@ -24,7 +23,7 @@ function embedUrl(url: string): string | null {
 /**
  * 種目の動画。詳細の一番上に置く。
  * 自前の置き場の動画は清水の縦撮りを 4:5 に切り抜いたもので、音なしで自動再生して繰り返す（2026-11-23 Rucolow）。
- * YouTube・Vimeo は 16:9 で埋め込む。動画がまだ無い種目は 16:9 の空の枠を出す。
+ * YouTube・Vimeo は 16:9 で埋め込む。動画の無い種目と、埋め込めない URL では何も出さない（有酸素は動画を付けないと 2026-11-24 に Rucolow が決めたので「準備中」は事実と違う）。
  */
 export function VideoFrame({ url, title }: { url: string | null; title: string }) {
   const own = url ? isOwnStorageUrl(url) : false
@@ -32,25 +31,17 @@ export function VideoFrame({ url, title }: { url: string | null; title: string }
   if (url && own) {
     return <OwnVideo url={url} title={title} />
   }
+  if (!embed) return null
   return (
     <div className="aspect-video w-full overflow-hidden rounded-field border border-layer-10 bg-navy-900">
-      {embed ? (
-        <iframe
-          src={embed}
-          title={title}
-          loading="lazy"
-          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
-          className="h-full w-full"
-        />
-      ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-navy-500">
-          <span className="flex h-12 w-12 items-center justify-center rounded-pill border border-layer-10">
-            <Play size={20} aria-hidden="true" />
-          </span>
-          <span className="text-2xs">動画は準備中です</span>
-        </div>
-      )}
+      <iframe
+        src={embed}
+        title={title}
+        loading="lazy"
+        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowFullScreen
+        className="h-full w-full"
+      />
     </div>
   )
 }
