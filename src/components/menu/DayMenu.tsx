@@ -98,6 +98,15 @@ function lines(s: string | null): string[] {
   return s.split('\n').map((t) => t.replace(/\*\*/g, '').trim().replace(/^・\s*/, '').trim()).filter((t) => t && !t.startsWith('#') && !/^[*\-_\s]+$/.test(t))
 }
 
+/**
+ * 動作の行に番号を振る。原文が自分で「1. ランジジャンプ」のように番号を持つ行（HIIT の動きの一覧）は、
+ * 直前の手順の中身なので番号の丸を付けずに字下げし、原文の番号はそのまま見せる（二重の番号を避ける）
+ */
+function numberSteps(steps: string[]): { n: number | null; text: string }[] {
+  let n = 0
+  return steps.map((text) => /^\d+[.．)）]\s*/.test(text) ? { n: null, text } : { n: ++n, text })
+}
+
 /** 数字だけを大きく見せる。文言はそのまま */
 function Figure({ text }: { text: string }) {
   const parts = text.split(/(\d+(?:[.〜~\-－]\d+)?)/)
@@ -144,10 +153,14 @@ function ExerciseDetail({ it }: { it: PlayerDayItem }) {
     </Section>}
 
     {steps.length > 0 && <Section label="動作">
-      <ol className="space-y-2">{steps.map((l, i) => <li key={i} className="flex gap-3">
-        <Num className="flex h-5 w-5 shrink-0 items-center justify-center rounded-pill bg-layer-10 text-2xs font-bold text-gold-500">{i + 1}</Num>
-        <span className="min-w-0 flex-1 text-sm text-navy-100">{l}</span>
-      </li>)}</ol>
+      <ol className="space-y-2">{numberSteps(steps).map((st, i) => st.n === null
+        ? <li key={i} className="flex gap-3 pl-8">
+          <span className="min-w-0 flex-1 text-sm text-navy-200">{st.text}</span>
+        </li>
+        : <li key={i} className="flex gap-3">
+          <Num className="flex h-5 w-5 shrink-0 items-center justify-center rounded-pill bg-layer-10 text-2xs font-bold text-gold-500">{st.n}</Num>
+          <span className="min-w-0 flex-1 text-sm text-navy-100">{st.text}</span>
+        </li>)}</ol>
     </Section>}
 
     {focus.length > 0 && <Section label="ポイント">
