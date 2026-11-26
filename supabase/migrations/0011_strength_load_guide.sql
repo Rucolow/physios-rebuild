@@ -9,3 +9,6 @@ update exercise set default_load_raw = '6回やり終えても、あと1〜2回�
 update exercise set default_load_raw = '3〜4回やり終えても、あと1〜2回できる余裕がある重さで行います。' where name = 'ケーブルプッシュダウンⅢ';
 update exercise set default_load_raw = '3〜4回やり終えても、あと1〜2回できる余裕がある重さで行います。' where name = 'ケーブルアブダクションⅢ';
 update exercise set default_load_raw = '3〜4回やり終えても、あと1〜2回できる余裕がある重さで行います。' where name = 'ケーブルラットプルダウンⅢ';
+-- ケーブルプッシュダウンの目的のメモ（元は「検討必要」）。2026-11-26 清水が提案どおりで了承（同じケーブルのアブダクション・ラットプルダウンに合わせた）。セット・回数・休憩は変えない。
+update exercise set trainer_note = '筋力発揮が目的' where name = 'ケーブルプッシュダウンⅡ';
+update exercise set trainer_note = '最大筋力の向上が目的' where name = 'ケーブルプッシュダウンⅢ';

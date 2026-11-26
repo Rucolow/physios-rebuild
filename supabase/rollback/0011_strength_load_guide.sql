@@ -8,3 +8,5 @@ update exercise set default_load_raw = null where name = 'オーバーヘッド�
 update exercise set default_load_raw = null where name = 'ケーブルプッシュダウンⅢ';
 update exercise set default_load_raw = null where name = 'ケーブルアブダクションⅢ';
 update exercise set default_load_raw = null where name = 'ケーブルラットプルダウンⅢ';
+update exercise set trainer_note = '検討必要' where name = 'ケーブルプッシュダウンⅡ';
+update exercise set trainer_note = '検討必要（最大筋力増強）' where name = 'ケーブルプッシュダウンⅢ';
